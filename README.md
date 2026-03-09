@@ -13,6 +13,11 @@ set CGO_ENABLED=1
 go install github.com/2xxn/cli-drunkdeer/drunkdeer@latest
 ```
 ### You may simply move ./go/bin/drunkdeer* to /usr/bin under root on Linux, BUT ONLY AT YOUR OWN RISK!!!
+This allows you to do this (for example):
+```bash
+sudo drunkdeer -h
+```
+ONLY so cuz of permissions stuff.
 This tool works, but not for everything.
 
 ## Usage
