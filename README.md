@@ -18,7 +18,7 @@ This allows you to do this (for example):
 sudo drunkdeer -h
 ```
 
-```bash sudo``` is required cuz of permissions stuff.
+```sudo``` is required cuz of permissions stuff.
 This tool works, but not for everything.
 
 ## Usage
