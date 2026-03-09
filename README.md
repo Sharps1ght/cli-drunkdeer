@@ -17,7 +17,8 @@ This allows you to do this (for example):
 ```bash
 sudo drunkdeer -h
 ```
-ONLY so cuz of permissions stuff.
+
+```bash sudo``` is required cuz of permissions stuff.
 This tool works, but not for everything.
 
 ## Usage
