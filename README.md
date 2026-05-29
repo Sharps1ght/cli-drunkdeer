@@ -80,7 +80,7 @@ Actuation point should be between 0.1mm and 3.9mm (although both are unadvised, 
 ```
 
 # WORD FROM ME, SHARPSIGHT
-I made color profiles work on Linux. It still requires ```sudo``` to work. ONLY TESTED WITH G60 AND EXPLICITLY MADE TO WORK WITH IT! PLEASE, don't try it on other keyboards. Or do, but at your own risk.
+I (OpenCode Zen, i dunno) made color profiles work on Linux. It still requires ```sudo``` to work. ONLY TESTED WITH G60 AND EXPLICITLY MADE TO WORK WITH IT! PLEASE, don't try it on other keyboards. Or do, but at your own risk.
 ## Usage
 There is a precomplied executable at *cli-drunkdeer/drunkdeer*. To run, use
 ```bash
