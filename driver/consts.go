@@ -24,27 +24,40 @@ const (
 	KEYBOARD_G75    = "G75"
 )
 
+// G60-specific LED mode sequence values
+// Derived from the webdriver's adjusted array indices (Math.max(0, arrayIndex - 2))
 const (
-	SEQUENCE_OFF = 0x00
+	SEQUENCE_OFF         = 0x00
+	SEQUENCE_WAVE        = 0x02 // 光谱波浪 (spectrum wave)
+	SEQUENCE_SURF_RIGHT  = 0x03 // 往右冲浪 (right surfing)
+	SEQUENCE_BREATH      = 0x04 // 呼吸 (breathing)
+	SEQUENCE_SURF_CENTER = 0x05 // 往中冲浪 (center surfing)
+	SEQUENCE_CYCLE       = 0x06 // 光谱循环 (spectrum cycle)
+	SEQUENCE_RIPPLE      = 0x07 // 按键涟漪 (key ripple)
+	SEQUENCE_ALWAYS      = 0x08 // 常亮 (always on)
+	SEQUENCE_PRESS       = 0x09 // 按下亮 (press to light)
+	SEQUENCE_SNAKE       = 0x0A // 往中间蛇形跑灯 (center snake)
+	SEQUENCE_FOUNTAIN    = 0x0B // 七彩喷泉 (color fountain)
+	SEQUENCE_LASER       = 0x0C // 按键激光 (key laser)
+	SEQUENCE_FISH        = 0x0D // 发光的鱼 (glowing fish)
+	SEQUENCE_SURF_CROSS  = 0x0E // 交叉冲浪 (cross surfing)
+	SEQUENCE_HEART       = 0x0F // 爱心 (heart)
+	SEQUENCE_TRAFFIC     = 0x10 // 交通 (traffic)
+	SEQUENCE_SNAKE_OLD   = 0x11 // 贪吃蛇 (snake)
+	SEQUENCE_RAINDROP    = 0x12 // 雨滴 (raindrop)
+	SEQUENCE_CUSTOM      = 0x13 // custom colors (turbo or standard)
+)
 
-	SEQUENCE_ALWAYS          = 0x02
-	SEQUENCE_SPECTRUM        = 0x03
-	SEQUENCE_BREATH          = 0x04
-	SEQUENCE_PRESS           = 0x05
-	SEQUENCE_STARS           = 0x06
-	SEQUENCE_WAVE            = 0x07
-	SEQUENCE_SURF            = 0x08
-	SEQUENCE_SURFDOWN        = 0x09
-	SEQUENCE_RIPPLE          = 0x0A
-	SEQUENCE_FISH            = 0x0B
-	SEQUENCE_FOUNTAIN        = 0x0C
-	SEQUENCE_TRAFFIC         = 0x0D
-	SEQUENCE_SNAKE           = 0x0E
-	SEQUENCE_SURF_REPEAT     = 0x0F
-	SEQUENCE_SURF_CROSS      = 0x10
-	SEQUENCE_LASER_KEY       = 0x11
-	SEQUENCE_FOUNTAIN_RANDOM = 0x12
-	SEQUENCE_CUSTOM          = 0x13
+// Color index values for G60
+const (
+	COLOR_RED    = 0x01
+	COLOR_ORANGE = 0x02
+	COLOR_YELLOW = 0x03
+	COLOR_GREEN  = 0x04
+	COLOR_CYAN   = 0x05
+	COLOR_BLUE   = 0x06
+	COLOR_PURPLE = 0x07
+	COLOR_WHITE  = 0x08
 )
 
 // Imagine this is a const

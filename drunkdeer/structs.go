@@ -12,6 +12,7 @@ type LightSettings struct {
 	Sequence   int  `json:"sequence"`
 	Speed      int  `json:"speed"`
 	Brightness int  `json:"brightness"`
+	Color      int  `json:"color,omitempty"`
 }
 
 type Config struct {

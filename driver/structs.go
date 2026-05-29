@@ -19,6 +19,7 @@ type DrunkDeerController struct {
 	debug        bool
 
 	wg          sync.WaitGroup
+	packetWg    sync.WaitGroup
 	packetChan  chan DDPacket
 	packetQueue chan []byte
 
@@ -38,6 +39,7 @@ type DDLight struct {
 	Speed      byte
 	Sequence   byte
 	Brightness byte
+	Color      byte
 }
 
 type DDKeyboardIdentity struct {

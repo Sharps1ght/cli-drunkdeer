@@ -146,7 +146,7 @@ func (d *DrunkDeerController) WriteDefaults() {
 	}
 
 	d.Log("Writing defaults")
-	d.SendLEDModeSelect(0, SEQUENCE_OFF, 5, 9, 0xff)
+	d.SendLEDModeDisable()
 	d.SendRapidTriggerTurbo(false, false)
 
 	for i := 0; i < len(d.actuations); i += KEYS_PER_ROW {
@@ -228,18 +228,21 @@ func NewDrunkDeerController(device *hid.Device) *DrunkDeerController {
 				return // Exit if reading fails
 			}
 
-			if buf[0] != KEYBOARD_REPORT_ID {
-				continue
-			}
-
 			if n > 0 {
+				if buf[0] != KEYBOARD_REPORT_ID {
+					if controller.debug {
+						fmt.Printf(color.HiYellowString("[DEBUG ALT REPORT ID 0x%02x] %x\n"), buf[0], buf[1:n])
+					}
+					continue
+				}
+
 				packet := DDPacket{
 					Packet: buf[1],
 					Data:   buf[2:n],
 				}
 				select {
 				case controller.packetChan <- packet:
-				case <-time.After(100 * time.Millisecond): // Prevent blocking
+				case <-time.After(100 * time.Millisecond):
 				}
 			}
 		}
@@ -258,11 +261,12 @@ func (d *DrunkDeerController) drunkDeerReporter() {
 		select {
 		case p, ok := <-d.packetQueue:
 			if !ok {
-				return // Exit if channel is closed
+				return
 			}
 			d.sendReport(p)
-			time.Sleep(100 * time.Millisecond) // Add a small delay to avoid overwhelming the device
-		case <-time.After(100 * time.Millisecond): // Check shouldClose periodically
+			d.packetWg.Done()
+			time.Sleep(100 * time.Millisecond)
+		case <-time.After(100 * time.Millisecond):
 			if d.shouldClose {
 				return
 			}

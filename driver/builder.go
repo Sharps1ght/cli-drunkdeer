@@ -20,6 +20,19 @@ func BuildLEDModeSelect(direction, sequence, speed, brightness, rgb byte) []byte
 	}
 }
 
+func BuildLEDModeDisable() []byte {
+	return []byte{
+		PACKET_LEDMODESEL,
+		0x01,
+		0x00,
+		0x00,
+		SEQUENCE_OFF,
+		0x00,
+		0x00,
+		0x00,
+	}
+}
+
 func BuildLEDModeSelectTurbo(direction, sequence, speed, brightness, rgb byte) []byte {
 	report := BuildLEDModeSelect(direction, sequence, speed, brightness, rgb)
 	report[2] = 0x01

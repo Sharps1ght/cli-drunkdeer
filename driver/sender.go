@@ -15,6 +15,11 @@ func (d *DrunkDeerController) SendLEDModeSelectTurbo(direction, sequence, speed,
 	d.QueuePacket(report)
 }
 
+func (d *DrunkDeerController) SendLEDModeDisable() {
+	report := BuildLEDModeDisable()
+	d.QueuePacket(report)
+}
+
 func (d *DrunkDeerController) SendModifyRow(row uint8, keys []byte) {
 	report := BuildModifyRowActuation(row, keys)
 	d.QueuePacket(report)
@@ -44,5 +49,10 @@ func (d *DrunkDeerController) QueuePacket(p []byte) {
 		packet = p
 	}
 
+	d.packetWg.Add(1)
 	d.packetQueue <- packet
+}
+
+func (d *DrunkDeerController) Flush() {
+	d.packetWg.Wait()
 }
