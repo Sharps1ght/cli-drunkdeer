@@ -89,8 +89,8 @@ sudo /path/to/executable/drunkdeer *command*
 or compile yourself according to 2xxn's guide.
 ## List of sequences
 Or light modes, however you like:
-| Value | Name | Chinese Name |
-|-------|------|-------------|
+| Value | Name |
+|-------|------|
 | 0  | Off              |
 | 1  | Rotating Chase   |
 | 2  | Spectrum Wave    |
