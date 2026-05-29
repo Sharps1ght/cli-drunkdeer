@@ -81,3 +81,33 @@ Actuation point should be between 0.1mm and 3.9mm (although both are unadvised, 
 
 # WORD FROM ME, SHARPSIGHT
 I made color profiles work on Linux. It still requires ```sudo``` to work. ONLY TESTED WITH G60 AND EXPLICITLY MADE TO WORK WITH IT! PLEASE, don't try it on other keyboards. Or do, but at your own risk.
+## Usage
+There is a precomplied executable at *cli-drunkdeer/drunkdeer*. To run, use
+```bash
+sudo /path/to/executable/drunkdeer *command*
+```
+or compile yourself according to 2xxn's guide.
+## List of sequences
+Or light modes, however you like:
+| Value | Name | Chinese Name |
+|-------|------|-------------|
+| 0  | Off              |
+| 1  | Rotating Chase   |
+| 2  | Spectrum Wave    |
+| 3  | Right Surfing    |
+| 4  | Breathing        |
+| 5  | Center Surfing   |
+| 6  | Spectrum Cycle   |
+| 7  | Key Ripple       |
+| 8  | Always On        |
+| 9  | Press To Light   |
+| 10 | Center Snake     |
+| 11 | Color Fountain   |
+| 12 | Key Laser        |
+| 13 | Glowing Fish     |
+| 14 | Cross Surfing    |
+| 15 | Heart            |
+| 16 | Traffic          |
+| 17 | Snake            |
+| 18 | Raindrop         |
+| 19 | Custom Colors    |
