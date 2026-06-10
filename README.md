@@ -115,6 +115,7 @@ Or light modes, however you like:
 If you set ```sequence``` to ```19``` you can set your colors with ```color(s)```.
 This utility accepts HEX code. ```color``` decides the default color of unspecified keys, while ```colors``` is for custom color for specific key, overriding the ```color```.
 ```
+{
 "light":    {
 [...]
 "color": "#00FF00",
@@ -122,6 +123,7 @@ This utility accepts HEX code. ```color``` decides the default color of unspecif
     "ESC": "#FF0000",
     "SPACE": "#FF0000",
     "RETURN": "#FF0000"
+        }
     }
 }
 ```
