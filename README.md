@@ -86,7 +86,7 @@ There is a precomplied executable at *cli-drunkdeer/drunkdeer*. To run, use
 ```bash
 sudo /path/to/executable/drunkdeer *command*
 ```
-or compile yourself according to 2xxn's guide.
+or compile yourself: go inside the cloned repo's directory and run ```go build -o drunkdeer ./drunkdeer```.
 ## List of sequences
 Or light modes, however you like:
 | Value | Name |
@@ -111,3 +111,18 @@ Or light modes, however you like:
 | 17 | Snake            |
 | 18 | Raindrop         |
 | 19 | Custom Colors    |
+## Custom colors
+If you set ```sequence``` to ```19``` you can set your colors with ```color(s)```.
+This utility accepts HEX code. ```color``` decides the default color of unspecified keys, while ```colors``` is for custom color for specific key, overriding the ```color```.
+```
+"light":    {
+[...]
+"color": "#00FF00",
+"colors":   {
+    "ESC": "#FF0000",
+    "SPACE": "#FF0000",
+    "RETURN": "#FF0000"
+    }
+}
+```
+This exact setup will make every key green, except Escape, Space and Enter, these three will be red.
