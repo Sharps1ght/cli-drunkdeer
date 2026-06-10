@@ -35,11 +35,13 @@ type DDPacket struct {
 }
 
 type DDLight struct {
-	Direction  byte
-	Speed      byte
-	Sequence   byte
-	Brightness byte
-	Color      byte
+	Direction    byte
+	Speed        byte
+	Sequence     byte
+	Brightness   byte
+	Color        byte
+	Colors       map[int][3]byte // per-key custom colors (key index → RGB)
+	DefaultColor [3]byte         // fallback color for unset keys in custom mode
 }
 
 type DDKeyboardIdentity struct {

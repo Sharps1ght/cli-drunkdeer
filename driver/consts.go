@@ -4,8 +4,10 @@ const (
 	KEYBOARD_REPORT_ID   = 0x04
 	KEYS_PER_ROW         = 59   // According to their dumb layout
 	DEFAULT_ACTUATION    = 0x14 // 0x14 is 2.0mm, there should be always 59 keys!!! (unless 3rd row)
-	CUSTOM_COLOR_PADDING = 0x80 // TODO: support
-	COLORS_PER_PACKET    = 13   // hex, max 13 keys per packet TODO: support
+	CUSTOM_COLOR_PADDING = 0x80
+	COLORS_PER_PACKET    = 13
+	BYTES_PER_KEY        = 4
+	G60_LED_GRID_SIZE    = 61  // 61 physical keys on G60
 )
 
 const (
@@ -68,6 +70,39 @@ var KEYBOARD_LAYOUT = []string{
 	"CAPS", "A", "S", "D", "F", "G", "H", "J", "K", "L", "COLON", "QOTATN", "", "RETURN", "", "KP0", "KP_DEL", "", "", "", "",
 	"SHF_L", "EUR_K45", "Z", "X", "C", "V", "B", "N", "M", "COMMA", "PERIOD", "SLASH", "", "SHF_R", "ARR_UP", "", "NUMS", "", "", "", "",
 	"CTRL_L", "WIN_L", "ALT_L", "", "", "", "SPACE", "", "", "", "ALT_R", "FN1", "APP", "ARR_L", "ARR_DW", "ARR_R", "CTRL_R", "", "", "", "",
+}
+
+// G60 LED grid in row-major order, matching the webdriver's getG60() iteration
+var G60_LED_GRID = [][]int{
+	{21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34},
+	{42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55},
+	{63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 76},
+	{84, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 97},
+	{105, 106, 107, 111, 115, 116, 117, 118},
+}
+
+// G60 key name to firmware index. KEYBOARD_LAYOUT is a generic full-size layout
+// where "ESC" is at index 0, but the G60 firmware has ESC at index 21.
+var G60_KEY_INDEX = map[string]int{
+	"ESC": 21, "1": 22, "2": 23, "3": 24, "4": 25, "5": 26, "6": 27,
+	"7": 28, "8": 29, "9": 30, "0": 31,
+	"MINUS": 32, "PLUS": 33, "BACK": 34,
+	"TAB": 42,
+	"Q": 43, "W": 44, "E": 45, "R": 46, "T": 47, "Y": 48,
+	"U": 49, "I": 50, "O": 51, "P": 52,
+	"BRKTS_L": 53, "BRKTS_R": 54, "SLASH_K29": 55,
+	"CAPS": 63,
+	"A": 64, "S": 65, "D": 66, "F": 67, "G": 68, "H": 69,
+	"J": 70, "K": 71, "L": 72,
+	"COLON": 73, "QOTATN": 74, "RETURN": 76,
+	"SHF_L": 84,
+	"Z": 86, "X": 87, "C": 88, "V": 89,
+	"B": 90, "N": 91, "M": 92,
+	"COMMA": 93, "PERIOD": 94, "SLASH": 95,
+	"SHF_R": 97,
+	"CTRL_L": 105, "WIN_L": 106, "ALT_L": 107,
+	"SPACE": 111,
+	"ALT_R": 115, "FN1": 116, "FN2": 117, "CTRL_R": 118,
 }
 
 var WASD_KEYS = []int{44, 64, 65, 66}

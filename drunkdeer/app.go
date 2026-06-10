@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/2xxn/cli-drunkdeer/driver"
 	"github.com/alexflint/go-arg"
@@ -179,13 +181,49 @@ func (a *App) prepareKeySettings(config *Config) ([]byte, []byte, []byte) {
 	return actuations, downstrokes, upstrokes
 }
 
+func parseHexColor(s string) [3]byte {
+	var rgb [3]byte
+	s = strings.TrimPrefix(s, "#")
+	if len(s) == 6 {
+		b, err := hex.DecodeString(s)
+		if err == nil && len(b) == 3 {
+			rgb = [3]byte{b[0], b[1], b[2]}
+		}
+	}
+	return rgb
+}
+
 func (a *App) configureLights(config *Config) {
+	colors := make(map[int][3]byte)
+	for keyName, hexStr := range config.Light.Colors {
+		idx := driver.GetIndexByKey(keyName)
+		if config.Model == "G60" {
+			if g60idx := driver.GetG60IndexByKey(keyName); g60idx != -1 {
+				idx = g60idx
+			}
+		}
+		if idx != -1 {
+			colors[idx] = parseHexColor(hexStr)
+		}
+	}
+
+	defaultCol := [3]byte{0, 0, 0}
+	var colIdx byte
+	if config.Light.Color != nil {
+		if config.Light.Color.Fill != "" {
+			defaultCol = parseHexColor(config.Light.Color.Fill)
+		}
+		colIdx = byte(config.Light.Color.Index)
+	}
+
 	a.controller.Light = &driver.DDLight{
-		Sequence:   byte(config.Light.Sequence),
-		Speed:      byte(config.Light.Speed),
-		Direction:  byte(config.Light.Direction),
-		Brightness: byte(config.Light.Brightness),
-		Color:      byte(config.Light.Color),
+		Sequence:     byte(config.Light.Sequence),
+		Speed:        byte(config.Light.Speed),
+		Direction:    byte(config.Light.Direction),
+		Brightness:   byte(config.Light.Brightness),
+		Color:        colIdx,
+		Colors:       colors,
+		DefaultColor: defaultCol,
 	}
 }
 
@@ -204,13 +242,21 @@ func (a *App) applySettings(config *Config, actuations, downstrokes, upstrokes [
 	if clr == 0 {
 		clr = driver.COLOR_RED
 	}
-	a.controller.SendLEDModeSelect(
-		0x00,
-		seq,
-		a.controller.Light.Speed,
-		a.controller.Light.Brightness,
-		clr,
-	)
+
+	if seq == driver.SEQUENCE_CUSTOM {
+		DEBUG("Sending custom color data (%d keys, default fill %02x%02x%02x)",
+			len(a.controller.Light.Colors),
+			a.controller.Light.DefaultColor[0], a.controller.Light.DefaultColor[1], a.controller.Light.DefaultColor[2])
+		a.controller.SendCustomColorData(a.controller.Light.Colors, a.controller.Light.Brightness, a.controller.Light.DefaultColor)
+	} else {
+		a.controller.SendLEDModeSelect(
+			0x00,
+			seq,
+			a.controller.Light.Speed,
+			a.controller.Light.Brightness,
+			clr,
+		)
+	}
 	a.controller.Flush()
 }
 

@@ -62,12 +62,22 @@ func BuildKeyTracking(track bool) []byte {
 	}
 }
 
-// func BuildLEDModeSelectCustomLight(direction, sequence, speed, brightness, rgb byte, ) []byte {
-// 	report := BuildLEDModeSelect(direction, sequence, speed, brightness, rgb)
-// 	report[2] = 0x02
+func BuildCustomColorPacket(colorData []byte, brightness byte) []byte {
+	report := make([]byte, 63)
+	report[0] = PACKET_LEDMODESEL
+	report[1] = 0x01
+	report[2] = 0x00 // turbo flag (0 = non-turbo custom mode)
+	report[3] = 0x00
+	report[4] = SEQUENCE_CUSTOM
+	report[5] = 0x06 // data type: custom color
+	report[6] = brightness
+	report[7] = 0xFF // header terminator
+	copy(report[8:], colorData)
+	// terminator right after color data, matching webdriver's sendTurboLedModeData
+	report[8+len(colorData)] = 0xFF
 
-// 	return report
-// }
+	return report
+}
 
 // Row 0 is the first row, row 1 is the second row, and row 2 is the third row
 func BuildModifyRow(row uint8, keys []byte, defaultValue byte) []byte {

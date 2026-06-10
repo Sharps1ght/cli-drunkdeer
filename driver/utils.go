@@ -80,6 +80,13 @@ func GetIndexByKey(key string) int {
 	return slices.Index(KEYBOARD_LAYOUT, key)
 }
 
+func GetG60IndexByKey(key string) int {
+	if idx, ok := G60_KEY_INDEX[key]; ok {
+		return idx
+	}
+	return -1
+}
+
 func GetRowByIndex(index int) int {
 	return index / KEYS_PER_ROW
 }
