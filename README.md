@@ -1,18 +1,22 @@
 # Custom DrunkDeer Driver CLI
+
 This CLI is a custom driver for the DrunkDeer keyboard. It allows you to configure the keyboard's settings, including actuation points, light settings, turbo mode and rapid trigger.
 
 ## Reason for this project
+
 This project was created out of frustration, DrunkDeer webdriver's servers are so awful that getting into the WebDriver can sometimes take up to 10 minutes (especially uncached, I have tendencies to reload using CTRL+SHIFT+R). This project is a workaround for that, it allows you to configure the keyboard without the need for the web driver, additionally "preventing" DrunkDeer from exit-scamming.
 
 ## REMAPPING IS NOT SUPPORTED YET
 
 ## Installation
 ### You will need gcc before installing and CGO_ENABLED=1
+
 ```bash
 set CGO_ENABLED=1
 go install github.com/2xxn/cli-drunkdeer/drunkdeer@latest
 ```
 ### You may simply move ./go/bin/drunkdeer* to /usr/bin under root on Linux, BUT ONLY AT YOUR OWN RISK!!!
+
 This allows you to do this (for example):
 ```bash
 sudo drunkdeer -h
@@ -22,11 +26,13 @@ sudo drunkdeer -h
 This tool works, but not for everything.
 
 ## Usage
+
 ```bash
 drunkdeer [command] [value?] [options?]
 ```
 
 ### You will generally need those 4 commands
+
 ```bash
 drunkdeer list - list all available devices
 drunkdeer profiles - list all available profiles
@@ -37,6 +43,7 @@ drunkdeer load [profile-name] - load a profile into the keyboard
 
 
 ### To learn more
+
 ```bash
 drunkdeer
 drunkdeer -h
@@ -45,9 +52,11 @@ drunkdeer -h
 ## Config File structure
 ### This entry is for myself and the more advanced users
 ### The config file is a JSON file that contains the following structure:
+
 List of character names and color sequences can be found in [this file](https://github.com/2xxn/cli-drunkdeer/blob/main/driver/consts.go)<br>
 Actuation point should be between 0.1mm and 3.9mm (although both are unadvised, you should do 0.2mm at lowest)
 #### Speed and brightness must be between 0 and 9 (where 9 is max)
+
 ```json
 {
     "model": "A75",
@@ -80,14 +89,17 @@ Actuation point should be between 0.1mm and 3.9mm (although both are unadvised, 
 ```
 
 # WORD FROM ME, SHARPSIGHT
+
 I (OpenCode Zen, i dunno) made color profiles work on Linux. It still requires ```sudo``` to work. ONLY TESTED WITH G60 AND EXPLICITLY MADE TO WORK WITH IT! PLEASE, don't try it on other keyboards. Or do, but at your own risk.
 ## Usage
+
 There is a precomplied executable at *cli-drunkdeer/drunkdeer*. To run, use
 ```bash
 sudo /path/to/executable/drunkdeer *command*
 ```
 or compile yourself: go inside the cloned repo's directory and run ```go build -o drunkdeer ./drunkdeer```.
 ## List of sequences
+
 Or light modes, however you like:
 | Value | Name |
 |-------|------|
@@ -112,6 +124,7 @@ Or light modes, however you like:
 | 18 | Raindrop         |
 | 19 | Custom Colors    |
 ## Custom colors
+
 If you set ```sequence``` to ```19``` you can set your colors with ```color(s)```.
 This utility accepts HEX code. ```color``` decides the default color of unspecified keys, while ```colors``` is for custom color for specific key, overriding the ```color```.
 ```json
@@ -128,3 +141,29 @@ This utility accepts HEX code. ```color``` decides the default color of unspecif
 }
 ```
 This exact setup will make every key green, except Escape, Space and Enter, these three will be red.
+## Remapping
+
+To remap a key, add ```remap``` section:
+```json
+{
+    "remap": {
+        "Default": {
+            "W": "S",
+            "A": "D",
+            "S": "W",
+            "D": "A"
+            },
+        "Fn1": {
+            "1": "F1",
+            "2": "F2",
+            [...]
+            },
+        "Fn2": {
+            "1": "KP1",
+            "2": "KP2",
+            [...]
+        }
+    }
+}
+```
+For tables of actions and keys refer to [mapping tables](/mapping.md)
