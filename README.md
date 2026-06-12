@@ -6,8 +6,6 @@ This CLI is a custom driver for the DrunkDeer keyboard. It allows you to configu
 
 This project was created out of frustration, DrunkDeer webdriver's servers are so awful that getting into the WebDriver can sometimes take up to 10 minutes (especially uncached, I have tendencies to reload using CTRL+SHIFT+R). This project is a workaround for that, it allows you to configure the keyboard without the need for the web driver, additionally "preventing" DrunkDeer from exit-scamming.
 
-## REMAPPING IS NOT SUPPORTED YET
-
 ## Installation
 ### You will need gcc before installing and CGO_ENABLED=1
 
@@ -166,4 +164,5 @@ To remap a key, add ```remap``` section:
     }
 }
 ```
-For tables of actions and keys refer to [mapping tables](/mapping.md)
+This particular setup will make you drunk in FPS games, binds Functions keys to the same ones available by default iirc and sets "Menu" 1-9 and 0 to numpad decimals. Not a complete, but it will give you an idea, I am sure.
+For tables of actions and keys refer to [mapping tables](/mapping.md). It is only made for G60 for now, but it should overlap with the rest of Drunkdeer keyboards.
