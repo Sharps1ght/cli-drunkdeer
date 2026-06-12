@@ -144,6 +144,7 @@ func (a *App) handleLoadProfile() {
 
 	a.configureLights(config)
 	a.applySettings(config, actuations, downstrokes, upstrokes)
+	a.applyRemap(config)
 
 	color.White("Loaded %s%s%s",
 		color.GreenString(a.args.Load),
@@ -256,6 +257,43 @@ func (a *App) applySettings(config *Config, actuations, downstrokes, upstrokes [
 			a.controller.Light.Brightness,
 			clr,
 		)
+	}
+	a.controller.Flush()
+}
+
+func (a *App) applyRemap(config *Config) {
+	model := a.controller.GetIdentity().KeyboardModel
+	layers := []struct {
+		layer byte
+		entries map[string]string
+	}{
+		{1, config.Remap.Default},
+		{2, config.Remap.Fn1},
+		{3, config.Remap.Fn2},
+	}
+
+	for _, l := range layers {
+		if len(l.entries) == 0 {
+			continue
+		}
+		keys := make(map[int]*driver.RemapKey)
+		for physKey, action := range l.entries {
+			idx := driver.GetRemapIndexByKey(physKey, model)
+			if idx == -1 {
+				DEBUG("Remap: unknown physical key %q (layer %d)", physKey, l.layer)
+				continue
+			}
+			rk, ok := driver.GetRemapAction(action)
+			if !ok {
+				DEBUG("Remap: unknown action %q", action)
+				continue
+			}
+			keys[idx] = &rk
+			DEBUG("Remap: %s(%d) -> %s (cmd=%02x code=%02x type=%d)", physKey, idx, action, rk.KeyCmd, rk.KeyCode, rk.KeyType)
+		}
+		if len(keys) > 0 {
+			a.controller.SendRemapData(keys, l.layer)
+		}
 	}
 	a.controller.Flush()
 }

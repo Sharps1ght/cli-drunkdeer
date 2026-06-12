@@ -83,6 +83,12 @@ type LightSettings struct {
 	Colors     map[string]string `json:"colors,omitempty"`
 }
 
+type RemapSettings struct {
+	Default map[string]string `json:"Default,omitempty"`
+	Fn1     map[string]string `json:"Fn1,omitempty"`
+	Fn2     map[string]string `json:"Fn2,omitempty"`
+}
+
 type Config struct {
 	Model            string                `json:"model"`
 	RapidTrigger     RapidTriggerSettings  `json:"rapidTrigger"`
@@ -91,6 +97,7 @@ type Config struct {
 	ActuationPoints  map[string]float32    `json:"actuationPoints"`
 	RapidTriggers    map[string][2]float32 `json:"rapidTriggers"`
 	Light            LightSettings         `json:"light"`
+	Remap            RemapSettings         `json:"remap,omitempty"`
 }
 
 type Args struct {

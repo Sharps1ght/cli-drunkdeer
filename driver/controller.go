@@ -291,7 +291,6 @@ func (d *DrunkDeerController) drunkDeerMessageReceiver() {
 			modelBytes := data.Next(3)
 
 			if theNullByte != 0x00 {
-				d.Log("Unknown byte 3: %x", theNullByte)
 				break
 			}
 

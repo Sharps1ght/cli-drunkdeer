@@ -114,7 +114,7 @@ Or light modes, however you like:
 ## Custom colors
 If you set ```sequence``` to ```19``` you can set your colors with ```color(s)```.
 This utility accepts HEX code. ```color``` decides the default color of unspecified keys, while ```colors``` is for custom color for specific key, overriding the ```color```.
-```
+```json
 {
 "light":    {
 [...]

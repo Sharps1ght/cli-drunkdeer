@@ -72,6 +72,13 @@ func (d *DrunkDeerController) SendUpstrokes(row uint8, keys []byte) {
 	d.QueuePacket(report)
 }
 
+func (d *DrunkDeerController) SendRemapData(keys map[int]*RemapKey, layer byte) {
+	for chunk := byte(1); chunk <= 14; chunk++ {
+		report := BuildRemapChunk(layer, chunk, keys)
+		d.QueuePacket(report)
+	}
+}
+
 func (d *DrunkDeerController) QueuePacket(p []byte) {
 	var packet []byte
 	if len(p) != 63 {
