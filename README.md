@@ -164,5 +164,5 @@ To remap a key, add ```remap``` section:
     }
 }
 ```
-This particular setup will make you drunk in FPS games, binds Functions keys to the same ones available by default iirc and sets "Menu" 1-9 and 0 to numpad decimals. Not a complete, but it will give you an idea, I am sure.
-For tables of actions and keys refer to [mapping tables](/mapping.md). It is only made for G60 for now, but it should overlap with the rest of Drunkdeer keyboards.
+This particular setup will make you drunk in FPS games, binds Functions keys to the same ones available by default iirc and sets "Menu" 1-9 and 0 to numpad decimals. Not a complete, but it will give you an idea, I am sure. <br>
+For tables of actions and keys refer to [mapping tables](/mapping.md). It is only made for G60 for now, but it should overlap with the rest of Drunkdeer keyboards. </br>
