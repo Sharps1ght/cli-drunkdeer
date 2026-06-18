@@ -13,7 +13,7 @@ func (d *DrunkDeerController) GetIdentity() *DDKeyboardIdentity {
 	if d.identity == nil {
 		d.SendIdentity()
 		for d.identity == nil && !d.shouldClose {
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(1 * time.Millisecond)
 		}
 	}
 
@@ -58,7 +58,7 @@ func (d *DrunkDeerController) Log(str string, v ...interface{}) {
 }
 
 func (d *DrunkDeerController) LoadActuations(actuations []byte) {
-	if len(actuations) != len(KEYBOARD_LAYOUT) {
+	if len(actuations) != LAYOUT_SIZE {
 		panic("Actuations length does not match keyboard layout length")
 	}
 
@@ -76,7 +76,7 @@ func (d *DrunkDeerController) LoadActuations(actuations []byte) {
 }
 
 func (d *DrunkDeerController) LoadDownstrokes(downstrokes []byte) {
-	if len(downstrokes) != len(KEYBOARD_LAYOUT) {
+	if len(downstrokes) != LAYOUT_SIZE {
 		panic("Downstrokes length does not match keyboard layout length")
 	}
 
@@ -95,7 +95,7 @@ func (d *DrunkDeerController) LoadDownstrokes(downstrokes []byte) {
 }
 
 func (d *DrunkDeerController) LoadUpstrokes(upstrokes []byte) {
-	if len(upstrokes) != len(KEYBOARD_LAYOUT) {
+	if len(upstrokes) != LAYOUT_SIZE {
 		panic("Upstrokes length does not match keyboard layout length")
 	}
 
@@ -116,7 +116,7 @@ func (d *DrunkDeerController) LoadUpstrokes(upstrokes []byte) {
 // #region Modifiers
 func (d *DrunkDeerController) ModifyActuationsByNames(names []string, actuations byte) {
 	for _, name := range names {
-		index := GetIndexByKey(name)
+		index := GetIndexByKey(name, KEYBOARD_A75)
 		if index != -1 {
 			d.actuations[index] = actuations
 		}
@@ -174,7 +174,9 @@ func (d *DrunkDeerController) Close() error {
 	d.closeOnce.Do(func() {
 		d.shouldClose = true
 
-		// Wait for all goroutines to finish.
+		close(d.packetQueue)
+		close(d.packetChan)
+
 		done := make(chan struct{})
 		go func() {
 			d.wg.Wait()
@@ -182,13 +184,9 @@ func (d *DrunkDeerController) Close() error {
 		}()
 		select {
 		case <-done:
-			// All goroutines have finished.
 		case <-time.After(5 * time.Second):
 			closeErr = fmt.Errorf("timeout waiting for goroutines to exit")
 		}
-
-		close(d.packetQueue)
-		close(d.packetChan)
 	})
 	return closeErr
 }
@@ -201,11 +199,11 @@ func NewDrunkDeerController(device *hid.Device) *DrunkDeerController {
 		Light:       &DDLight{},
 	}
 
-	controller.actuations = make([]byte, len(KEYBOARD_LAYOUT))
-	controller.downstrokes = make([]byte, len(KEYBOARD_LAYOUT))
-	controller.upstrokes = make([]byte, len(KEYBOARD_LAYOUT))
+	controller.actuations = make([]byte, LAYOUT_SIZE)
+	controller.downstrokes = make([]byte, LAYOUT_SIZE)
+	controller.upstrokes = make([]byte, LAYOUT_SIZE)
 
-	for i := range KEYBOARD_LAYOUT {
+	for i := 0; i < LAYOUT_SIZE; i++ {
 		controller.actuations[i] = DEFAULT_ACTUATION
 		controller.downstrokes[i] = 0x00
 		controller.upstrokes[i] = 0x00
@@ -217,6 +215,7 @@ func NewDrunkDeerController(device *hid.Device) *DrunkDeerController {
 	// Start a goroutine to read from the device and send packets to the channel
 	go func() {
 		defer controller.wg.Done()
+		defer func() { recover() }()
 		for {
 			if controller.shouldClose {
 				return // Exit when shouldClose is set
@@ -265,8 +264,8 @@ func (d *DrunkDeerController) drunkDeerReporter() {
 			}
 			d.sendReport(p)
 			d.packetWg.Done()
-			time.Sleep(100 * time.Millisecond)
-		case <-time.After(100 * time.Millisecond):
+			time.Sleep(1 * time.Millisecond)
+		case <-time.After(1 * time.Millisecond):
 			if d.shouldClose {
 				return
 			}

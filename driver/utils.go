@@ -2,7 +2,6 @@ package driver
 
 import (
 	"bytes"
-	"slices"
 )
 
 func BoolToByte(b bool) byte {
@@ -69,22 +68,26 @@ func DetectKeyboardModel(modelBytes []byte) (string, int) { // Model and type
 	return KEYBOARD_A75, 75
 }
 
+func GetIndexByKey(key string, model string) int {
+	return GetLayout(model).IndexOf(key)
+}
+
 func GetKeyByIndex(index int) string {
-	if index >= 0 && index < len(KEYBOARD_LAYOUT) {
-		return KEYBOARD_LAYOUT[index]
+	if index >= 0 && index < LAYOUT_SIZE {
+		return a75Layout[index]
 	}
 	return ""
 }
 
-func GetIndexByKey(key string) int {
-	return slices.Index(KEYBOARD_LAYOUT, key)
-}
-
-func GetG60IndexByKey(key string) int {
-	if idx, ok := G60_KEY_INDEX[key]; ok {
-		return idx
+func GetLayoutKeys(model string) []string {
+	l := GetLayout(model)
+	keys := make([]string, 0, LAYOUT_SIZE)
+	for _, name := range l {
+		if name != "" {
+			keys = append(keys, name)
+		}
 	}
-	return -1
+	return keys
 }
 
 func GetRowByIndex(index int) int {

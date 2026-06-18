@@ -62,14 +62,74 @@ const (
 	COLOR_WHITE  = 0x08
 )
 
-// Imagine this is a const
-var KEYBOARD_LAYOUT = []string{
-	"ESC", "", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "KP7", "KP8", "KP9", "", "", "", "",
-	"TILDE", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "MINUS", "PLUS", "BACK", "KP4", "KP5", "KP6", "", "", "", "",
-	"TAB", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "BRKTS_L", "BRKTS_R", "SLASH_K29", "KP1", "KP2", "KP3", "", "", "", "",
-	"CAPS", "A", "S", "D", "F", "G", "H", "J", "K", "L", "COLON", "QOTATN", "", "RETURN", "", "KP0", "KP_DEL", "", "", "", "",
-	"SHF_L", "EUR_K45", "Z", "X", "C", "V", "B", "N", "M", "COMMA", "PERIOD", "SLASH", "", "SHF_R", "ARR_UP", "", "NUMS", "", "", "", "",
-	"CTRL_L", "WIN_L", "ALT_L", "", "", "", "SPACE", "", "", "", "ALT_R", "FN1", "APP", "ARR_L", "ARR_DW", "ARR_R", "CTRL_R", "", "", "", "",
+const LAYOUT_SIZE = 126
+
+type Layout [LAYOUT_SIZE]string
+
+func (l Layout) IndexOf(name string) int {
+	for i, n := range l {
+		if n == name {
+			return i
+		}
+	}
+	return -1
+}
+
+var a75Layout = Layout{
+	0: "ESC",
+	2: "F1", 3: "F2", 4: "F3", 5: "F4", 6: "F5", 7: "F6", 8: "F7", 9: "F8", 10: "F9", 11: "F10", 12: "F11", 13: "F12",
+	14: "KP7", 15: "KP8", 16: "KP9",
+	21: "TILDE",
+	22: "1", 23: "2", 24: "3", 25: "4", 26: "5", 27: "6", 28: "7", 29: "8", 30: "9", 31: "0",
+	32: "MINUS", 33: "PLUS", 34: "BACK",
+	35: "KP4", 36: "KP5", 37: "KP6",
+	42: "TAB",
+	43: "Q", 44: "W", 45: "E", 46: "R", 47: "T", 48: "Y", 49: "U", 50: "I", 51: "O", 52: "P",
+	53: "BRKTS_L", 54: "BRKTS_R", 55: "SLASH_K29",
+	56: "KP1", 57: "KP2", 58: "KP3",
+	63: "CAPS",
+	64: "A", 65: "S", 66: "D", 67: "F", 68: "G", 69: "H", 70: "J", 71: "K", 72: "L",
+	73: "COLON", 74: "QOTATN", 76: "RETURN",
+	77: "KP0", 78: "KP_DEL",
+	84: "SHF_L",
+	85: "EUR_K45",
+	86: "Z", 87: "X", 88: "C", 89: "V", 90: "B", 91: "N", 92: "M",
+	93: "COMMA", 94: "PERIOD", 95: "SLASH",
+	97: "SHF_R", 98: "ARR_UP", 100: "NUMS",
+	105: "CTRL_L", 106: "WIN_L", 107: "ALT_L",
+	111: "SPACE",
+	115: "ALT_R", 116: "FN1", 117: "APP", 118: "ARR_L", 119: "ARR_DW", 120: "ARR_R", 121: "CTRL_R",
+}
+
+var g60Layout = Layout{
+	21: "ESC",
+	22: "1", 23: "2", 24: "3", 25: "4", 26: "5", 27: "6", 28: "7", 29: "8", 30: "9", 31: "0",
+	32: "MINUS", 33: "PLUS", 34: "BACK",
+	42: "TAB",
+	43: "Q", 44: "W", 45: "E", 46: "R", 47: "T", 48: "Y",
+	49: "U", 50: "I", 51: "O", 52: "P",
+	53: "BRKTS_L", 54: "BRKTS_R", 55: "SLASH_K29",
+	63: "CAPS",
+	64: "A", 65: "S", 66: "D", 67: "F", 68: "G", 69: "H",
+	70: "J", 71: "K", 72: "L",
+	73: "COLON", 74: "QOTATN", 76: "RETURN",
+	84: "SHF_L",
+	86: "Z", 87: "X", 88: "C", 89: "V",
+	90: "B", 91: "N", 92: "M",
+	93: "COMMA", 94: "PERIOD", 95: "SLASH",
+	97: "SHF_R",
+	105: "CTRL_L", 106: "WIN_L", 107: "ALT_L",
+	111: "SPACE",
+	115: "ALT_R", 116: "FN1", 117: "FN2", 118: "CTRL_R",
+}
+
+func GetLayout(model string) Layout {
+	switch model {
+	case KEYBOARD_G60:
+		return g60Layout
+	default:
+		return a75Layout
+	}
 }
 
 // G60 LED grid in row-major order, matching the webdriver's getG60() iteration
@@ -79,30 +139,6 @@ var G60_LED_GRID = [][]int{
 	{63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 76},
 	{84, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 97},
 	{105, 106, 107, 111, 115, 116, 117, 118},
-}
-
-// G60 key name to firmware index. KEYBOARD_LAYOUT is a generic full-size layout
-// where "ESC" is at index 0, but the G60 firmware has ESC at index 21.
-var G60_KEY_INDEX = map[string]int{
-	"ESC": 21, "1": 22, "2": 23, "3": 24, "4": 25, "5": 26, "6": 27,
-	"7": 28, "8": 29, "9": 30, "0": 31,
-	"MINUS": 32, "PLUS": 33, "BACK": 34,
-	"TAB": 42,
-	"Q": 43, "W": 44, "E": 45, "R": 46, "T": 47, "Y": 48,
-	"U": 49, "I": 50, "O": 51, "P": 52,
-	"BRKTS_L": 53, "BRKTS_R": 54, "SLASH_K29": 55,
-	"CAPS": 63,
-	"A": 64, "S": 65, "D": 66, "F": 67, "G": 68, "H": 69,
-	"J": 70, "K": 71, "L": 72,
-	"COLON": 73, "QOTATN": 74, "RETURN": 76,
-	"SHF_L": 84,
-	"Z": 86, "X": 87, "C": 88, "V": 89,
-	"B": 90, "N": 91, "M": 92,
-	"COMMA": 93, "PERIOD": 94, "SLASH": 95,
-	"SHF_R": 97,
-	"CTRL_L": 105, "WIN_L": 106, "ALT_L": 107,
-	"SPACE": 111,
-	"ALT_R": 115, "FN1": 116, "FN2": 117, "CTRL_R": 118,
 }
 
 var WASD_KEYS = []int{44, 64, 65, 66}

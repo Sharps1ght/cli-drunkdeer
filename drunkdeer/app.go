@@ -95,14 +95,14 @@ func (a *App) sendLEDReport(p []byte) {
 }
 
 func (a *App) cleanup() {
-	if a.controller != nil {
-		a.controller.Close()
+	if a.device != nil {
+		a.device.Close()
 	}
 	if a.ledDevice != nil {
 		a.ledDevice.Close()
 	}
-	if a.device != nil {
-		a.device.Close()
+	if a.controller != nil {
+		a.controller.Close()
 	}
 }
 
@@ -154,9 +154,9 @@ func (a *App) handleLoadProfile() {
 }
 
 func (a *App) prepareKeySettings(config *Config) ([]byte, []byte, []byte) {
-	actuations := make([]byte, len(driver.KEYBOARD_LAYOUT))
-	downstrokes := make([]byte, len(driver.KEYBOARD_LAYOUT))
-	upstrokes := make([]byte, len(driver.KEYBOARD_LAYOUT))
+	actuations := make([]byte, driver.LAYOUT_SIZE)
+	downstrokes := make([]byte, driver.LAYOUT_SIZE)
+	upstrokes := make([]byte, driver.LAYOUT_SIZE)
 
 	defaultAct := driver.ActuationFloatToByte(config.DefaultActuation)
 	defaultDS := driver.ActuationFloatToByte(config.RapidTrigger.DefaultDownstroke)
@@ -169,12 +169,12 @@ func (a *App) prepareKeySettings(config *Config) ([]byte, []byte, []byte) {
 	}
 
 	for key, value := range config.ActuationPoints {
-		i := driver.GetIndexByKey(key)
+		i := driver.GetIndexByKey(key, config.Model)
 		actuations[i] = driver.ActuationFloatToByte(value)
 	}
 
 	for key, value := range config.RapidTriggers {
-		i := driver.GetIndexByKey(key)
+		i := driver.GetIndexByKey(key, config.Model)
 		downstrokes[i] = driver.ActuationFloatToByte(value[0])
 		upstrokes[i] = driver.ActuationFloatToByte(value[1])
 	}
@@ -197,12 +197,7 @@ func parseHexColor(s string) [3]byte {
 func (a *App) configureLights(config *Config) {
 	colors := make(map[int][3]byte)
 	for keyName, hexStr := range config.Light.Colors {
-		idx := driver.GetIndexByKey(keyName)
-		if config.Model == "G60" {
-			if g60idx := driver.GetG60IndexByKey(keyName); g60idx != -1 {
-				idx = g60idx
-			}
-		}
+		idx := driver.GetIndexByKey(keyName, config.Model)
 		if idx != -1 {
 			colors[idx] = parseHexColor(hexStr)
 		}

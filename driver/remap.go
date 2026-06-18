@@ -1,7 +1,5 @@
 package driver
 
-import "slices"
-
 type RemapKey struct {
 	KeyCmd  byte
 	KeyCode byte
@@ -151,13 +149,7 @@ func GetRemapAction(name string) (RemapKey, bool) {
 }
 
 func GetRemapIndexByKey(key string, model string) int {
-	if model == KEYBOARD_G60 {
-		if idx, ok := G60_KEY_INDEX[key]; ok {
-			return idx
-		}
-		return -1
-	}
-	return slices.Index(KEYBOARD_LAYOUT, key)
+	return GetLayout(model).IndexOf(key)
 }
 
 func BuildRemapChunk(layer, chunkNum byte, keys map[int]*RemapKey) []byte {
