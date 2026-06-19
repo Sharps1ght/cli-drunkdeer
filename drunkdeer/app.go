@@ -132,6 +132,7 @@ func (a *App) handleReset() {
 }
 
 func (a *App) handleLoadProfile() {
+	t0 := time.Now()
 	config := a.getConfig(a.args.Load)
 	if config.Model != "" && config.Model != a.controller.GetIdentity().KeyboardModel {
 		color.HiRed("Profile model does not match device model (expected %s, got %s)",
@@ -149,14 +150,21 @@ func (a *App) handleLoadProfile() {
 	}
 
 	a.configureLights(config)
+	DEBUG("prepareKeySettings + configureLights: %v", time.Since(t0))
+	t1 := time.Now()
+
 	a.applySettings(config, actuations, downstrokes, upstrokes)
+	DEBUG("applySettings: %v", time.Since(t1))
+	t2 := time.Now()
+
 	a.applyRemap(config)
+	DEBUG("applyRemap: %v", time.Since(t2))
 
 	color.White("Loaded %s%s%s",
 		color.GreenString(a.args.Load),
 		color.WhiteString(" for "),
 		color.HiBlueString("DrunkDeer %s", config.Model))
-	DEBUG("Profile loaded")
+	DEBUG("Total load time: %v", time.Since(t0))
 }
 
 func (a *App) prepareKeySettings(config *Config) ([]byte, []byte, []byte) {
@@ -278,7 +286,6 @@ func (a *App) applySettings(config *Config, actuations, downstrokes, upstrokes [
 			a.controller.SendCustomColorData(light.Colors, light.Brightness, light.DefaultColor, false)
 		}
 		a.controller.Flush()
-		time.Sleep(100 * time.Millisecond)
 		return
 	} else {
 		a.controller.SendLEDModeSelect(

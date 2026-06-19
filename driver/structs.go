@@ -6,9 +6,22 @@ import (
 	"github.com/sstallion/go-hid"
 )
 
+var packetPool = sync.Pool{
+	New: func() any {
+		return make([]byte, 63)
+	},
+}
+
+var reportPool = sync.Pool{
+	New: func() any {
+		return make([]byte, 64)
+	},
+}
+
 type DrunkDeerController struct {
 	device   *hid.Device
 	identity *DDKeyboardIdentity
+	identSig chan struct{}
 
 	actuations  []byte
 	downstrokes []byte

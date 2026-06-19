@@ -115,7 +115,14 @@ func NewColorPicker(
 	var curSat = s
 	var curVal = v
 
-	svRaster := canvas.NewRaster(func(w, h int) image.Image {
+	var (
+		cachedHue    float64
+		cachedGradient *image.RGBA
+	)
+	makeSVGradient := func(w, h int) *image.RGBA {
+		if cachedGradient != nil && cachedGradient.Bounds().Dx() == w && cachedGradient.Bounds().Dy() == h {
+			return cachedGradient
+		}
 		img := image.NewRGBA(image.Rect(0, 0, w, h))
 		for y := 0; y < h; y++ {
 			sv := 1.0 - float64(y)/float64(h-1)
@@ -125,6 +132,17 @@ func NewColorPicker(
 				img.Set(x, y, color.RGBA{uint8(cr * 255), uint8(cg * 255), uint8(cb * 255), 0xff})
 			}
 		}
+		cachedGradient = img
+		return img
+	}
+
+	svRaster := canvas.NewRaster(func(w, h int) image.Image {
+		if cachedHue != curHue || cachedGradient == nil || cachedGradient.Bounds().Dx() != w || cachedGradient.Bounds().Dy() != h {
+			cachedHue = curHue
+			makeSVGradient(w, h)
+		}
+		img := image.NewRGBA(image.Rect(0, 0, w, h))
+		copy(img.Pix, cachedGradient.Pix)
 		cx := int(curSat * float64(w-1))
 		cy := int((1.0 - curVal) * float64(h-1))
 		for dx := -4; dx <= 4; dx++ {
@@ -162,21 +180,15 @@ func NewColorPicker(
 		return img
 	})
 
-	previewCombined := makeSizedRaster(func(w, h int) image.Image {
-		img := image.NewRGBA(image.Rect(0, 0, w, h))
-		half := w / 2
-		ac := hexToColor(initialHex)
-		sc := hexToColor(curHex)
-		for y := 0; y < h; y++ {
-			for x := 0; x < half; x++ {
-				img.Set(x, y, ac)
-			}
-			for x := half; x < w; x++ {
-				img.Set(x, y, sc)
-			}
-		}
-		return img
-	}, 128, 32)
+	oldColor := canvas.NewRectangle(hexToColor(initialHex))
+	oldColor.SetMinSize(fyne.NewSize(64, 32))
+	newColor := canvas.NewRectangle(hexToColor(curHex))
+	newColor.SetMinSize(fyne.NewSize(64, 32))
+
+	updatePreview := func() {
+		newColor.FillColor = hexToColor(curHex)
+		canvas.Refresh(newColor)
+	}
 
 	var update func()
 	var updating bool
@@ -229,7 +241,7 @@ func NewColorPicker(
 			curHue, curSat, curVal = hexToHSV(curHex)
 			svRaster.Refresh()
 			hueRaster.Refresh()
-			previewCombined.Refresh()
+			updatePreview()
 			if onPreview != nil {
 				onPreview(curHex)
 			}
@@ -239,7 +251,7 @@ func NewColorPicker(
 	update = func() {
 		svRaster.Refresh()
 		hueRaster.Refresh()
-		previewCombined.Refresh()
+		updatePreview()
 		updating = true
 		hexEntry.SetText(curHex)
 		updating = false
@@ -259,20 +271,11 @@ func NewColorPicker(
 		}
 	})
 
-	cancelBtn := fynetool.NewButton("Cancel", func() {
-		if result != nil && result.Destroy != nil {
-			result.Destroy()
-		}
-		if onCancel != nil {
-			onCancel()
-		}
-	})
-
 	rightGroup := container.NewHBox(
-		previewCombined,
+		container.NewHBox(oldColor, newColor),
 		hexWrapped,
 		selectBtn,
-		cancelBtn,
+		layout.NewSpacer(),
 	)
 
 	barGrid := container.New(layout.NewGridLayout(2), svArea, hueArea)

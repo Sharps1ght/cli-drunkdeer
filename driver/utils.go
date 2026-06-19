@@ -75,7 +75,7 @@ func GetIndexByKey(key string, model string) int {
 
 func GetKeyByIndex(index int) string {
 	if index >= 0 && index < LAYOUT_SIZE {
-		return a75Layout[index]
+		return a75Layout.names[index]
 	}
 	return ""
 }
@@ -98,7 +98,7 @@ func ResolveKeyToIndex(key string, model string) (int, bool) {
 func GetLayoutKeys(model string) []string {
 	l := GetLayout(model)
 	keys := make([]string, 0, LAYOUT_SIZE)
-	for _, name := range l {
+	for _, name := range l.names {
 		if name != "" {
 			keys = append(keys, name)
 		}

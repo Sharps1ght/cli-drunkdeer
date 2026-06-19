@@ -12,8 +12,9 @@ import (
 func (d *DrunkDeerController) GetIdentity() *DDKeyboardIdentity {
 	if d.identity == nil {
 		d.SendIdentity()
-		for d.identity == nil && !d.shouldClose {
-			time.Sleep(1 * time.Millisecond)
+		select {
+		case <-d.identSig:
+		case <-time.After(5 * time.Second):
 		}
 	}
 
@@ -28,8 +29,8 @@ func (d *DrunkDeerController) GetActuations() []byte {
 
 func (d *DrunkDeerController) sendReport(p []byte) {
 	d.Log("Sending report: %x", p)
-	report := make([]byte, 64)
-	report[0] = KEYBOARD_REPORT_ID // Report ID
+	report := reportPool.Get().([]byte)
+	report[0] = KEYBOARD_REPORT_ID
 
 	if len(p) > 63 {
 		p = p[:63]
@@ -38,6 +39,7 @@ func (d *DrunkDeerController) sendReport(p []byte) {
 	copy(report[1:], p)
 
 	_, err := d.device.Write(report)
+	reportPool.Put(report)
 	if err != nil {
 		d.Log("Write error: %v", err)
 	}
@@ -48,12 +50,24 @@ func (d *DrunkDeerController) SetDebug(debug bool) {
 }
 
 func (d *DrunkDeerController) Log(str string, v ...interface{}) {
+	if !d.debug {
+		return
+	}
+
+	ts := time.Now().Format("15:04:05.000")
 	if str[len(str)-1] != '\n' {
 		str += "\n"
 	}
+	fmt.Printf(color.HiGreenString("[DEBUG %s] ", ts)+str, v...)
+}
 
-	if d.debug {
-		fmt.Printf(color.HiGreenString("[DEBUG] ")+str, v...)
+func (d *DrunkDeerController) sendRows(data []byte, sender func(uint8, []byte)) {
+	for i := 0; i < len(data); i += KEYS_PER_ROW {
+		end := i + KEYS_PER_ROW
+		if end > len(data) {
+			end = len(data)
+		}
+		sender(uint8(i/KEYS_PER_ROW), data[i:end])
 	}
 }
 
@@ -61,62 +75,34 @@ func (d *DrunkDeerController) LoadActuations(actuations []byte) {
 	if len(actuations) != LAYOUT_SIZE {
 		panic("Actuations length does not match keyboard layout length")
 	}
-
 	d.actuations = actuations
-
-	for i := 0; i < len(d.actuations); i += KEYS_PER_ROW {
-		end := i + KEYS_PER_ROW
-		if end > len(d.actuations) {
-			end = len(d.actuations)
-		}
-		row := d.actuations[i:end]
-
-		d.SendModifyRow(uint8(i/KEYS_PER_ROW), row)
-	}
+	d.sendRows(d.actuations, d.SendModifyRow)
 }
 
 func (d *DrunkDeerController) LoadDownstrokes(downstrokes []byte) {
 	if len(downstrokes) != LAYOUT_SIZE {
 		panic("Downstrokes length does not match keyboard layout length")
 	}
-
 	d.downstrokes = downstrokes
-
-	for i := 0; i < len(d.downstrokes); i += KEYS_PER_ROW {
-		end := i + KEYS_PER_ROW
-		if end > len(d.downstrokes) {
-			end = len(d.downstrokes)
-		}
-
-		row := d.downstrokes[i:end]
-		rowIndex := uint8(i / KEYS_PER_ROW)
-		d.SendDownstrokes(rowIndex, row)
-	}
+	d.sendRows(d.downstrokes, d.SendDownstrokes)
 }
 
 func (d *DrunkDeerController) LoadUpstrokes(upstrokes []byte) {
 	if len(upstrokes) != LAYOUT_SIZE {
 		panic("Upstrokes length does not match keyboard layout length")
 	}
-
 	d.upstrokes = upstrokes
-
-	for i := 0; i < len(d.upstrokes); i += KEYS_PER_ROW {
-		end := i + KEYS_PER_ROW
-		if end > len(d.upstrokes) {
-			end = len(d.upstrokes)
-		}
-
-		row := d.upstrokes[i:end]
-		rowIndex := uint8(i / KEYS_PER_ROW)
-		d.SendUpstrokes(rowIndex, row)
-	}
+	d.sendRows(d.upstrokes, d.SendUpstrokes)
 }
 
 // #region Modifiers
 func (d *DrunkDeerController) ModifyActuationsByNames(names []string, actuations byte) {
+	model := KEYBOARD_A75
+	if d.identity != nil {
+		model = d.identity.KeyboardModel
+	}
 	for _, name := range names {
-		index := GetIndexByKey(name, KEYBOARD_A75)
+		index := GetIndexByKey(name, model)
 		if index != -1 {
 			d.actuations[index] = actuations
 		}
@@ -194,6 +180,7 @@ func (d *DrunkDeerController) Close() error {
 func NewDrunkDeerController(device *hid.Device) *DrunkDeerController {
 	controller := &DrunkDeerController{
 		device:      device,
+		identSig:    make(chan struct{}, 1),
 		packetChan:  make(chan DDPacket),
 		packetQueue: make(chan []byte, 10),
 		Light:       &DDLight{},
@@ -222,7 +209,10 @@ func NewDrunkDeerController(device *hid.Device) *DrunkDeerController {
 			}
 
 			buf := make([]byte, 64)
-			n, err := device.Read(buf)
+			n, err := device.ReadWithTimeout(buf, 50*time.Millisecond)
+			if err == hid.ErrTimeout {
+				continue
+			}
 			if err != nil {
 				return // Exit if reading fails
 			}
@@ -263,6 +253,7 @@ func (d *DrunkDeerController) drunkDeerReporter() {
 				return
 			}
 			d.sendReport(p)
+			packetPool.Put(p)
 			d.packetWg.Done()
 			time.Sleep(5 * time.Millisecond)
 		case <-time.After(100 * time.Millisecond):
@@ -308,6 +299,10 @@ func (d *DrunkDeerController) drunkDeerMessageReceiver() {
 				Turbo:           p.Data[14] != 0,
 			}
 			d.identity = &ident
+			select {
+			case d.identSig <- struct{}{}:
+			default:
+			}
 		case PACKET_LEDMODESEL:
 			d.Light.Direction = p.Data[2]
 			d.Light.Sequence = p.Data[3]

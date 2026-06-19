@@ -17,58 +17,33 @@ type DDConfig struct {
 	Keys        []DDConfigKey `json:"keys_array"`
 }
 
-func (c *DDConfig) getMostUsedActuation() float32 {
-	var distinctActuations map[float32]int = make(map[float32]int)
+func (c *DDConfig) mostUsedValues() (actuation, downstroke, upstroke float32) {
+	countsAct := make(map[float32]int)
+	countsDS := make(map[float32]int)
+	countsUS := make(map[float32]int)
 	for _, key := range c.Keys {
-		distinctActuations[key.Actuation]++
+		countsAct[key.Actuation]++
+		countsDS[key.Downstroke]++
+		countsUS[key.Upstroke]++
 	}
 
-	var mostUsedActuation float32 = 0
-	var mostUsedCount int = 0
-	for actuation, count := range distinctActuations {
-		if count > mostUsedCount {
-			mostUsedCount = count
-			mostUsedActuation = actuation
+	var maxAct, maxDS, maxUS int
+	for v, n := range countsAct {
+		if n > maxAct {
+			maxAct, actuation = n, v
 		}
 	}
-
-	return mostUsedActuation
-}
-
-func (c *DDConfig) getMostUsedDownstroke() float32 {
-	var distinctDownstrokes map[float32]int = make(map[float32]int)
-	for _, key := range c.Keys {
-		distinctDownstrokes[key.Downstroke]++
-	}
-
-	var mostUsedDownstroke float32 = 0
-	var mostUsedCount int = 0
-	for downstroke, count := range distinctDownstrokes {
-		if count > mostUsedCount {
-			mostUsedCount = count
-			mostUsedDownstroke = downstroke
+	for v, n := range countsDS {
+		if n > maxDS {
+			maxDS, downstroke = n, v
 		}
 	}
-
-	return mostUsedDownstroke
-}
-
-func (c *DDConfig) getMostUsedUpstroke() float32 {
-	var distinctUpstrokes map[float32]int = make(map[float32]int)
-	for _, key := range c.Keys {
-		distinctUpstrokes[key.Upstroke]++
-	}
-
-	var mostUsedUpstroke float32 = 0
-	var mostUsedCount int = 0
-	for upstroke, count := range distinctUpstrokes {
-		if count > mostUsedCount {
-			mostUsedCount = count
-			mostUsedUpstroke = upstroke
+	for v, n := range countsUS {
+		if n > maxUS {
+			maxUS, upstroke = n, v
 		}
 	}
-
-	return mostUsedUpstroke
+	return
 }
 
 func (c *DDConfig) getModelFromStorageName() string {
@@ -81,9 +56,7 @@ func (c *DDConfig) convertToCLIConfig() *Config {
 	var config Config
 
 	config.Model = c.getModelFromStorageName()
-	config.DefaultActuation = c.getMostUsedActuation()
-	config.RapidTrigger.DefaultDownstroke = c.getMostUsedDownstroke()
-	config.RapidTrigger.DefaultUpstroke = c.getMostUsedUpstroke()
+	config.DefaultActuation, config.RapidTrigger.DefaultDownstroke, config.RapidTrigger.DefaultUpstroke = c.mostUsedValues()
 	config.RapidTrigger.Enabled = true
 
 	config.Turbo = false

@@ -35,14 +35,9 @@ func MonospaceFontData() []byte {
 }
 
 func loadMonospaceFont() font.Face {
-	path := findSystemMonospace()
-	if path == "" {
+	data := MonospaceFontData()
+	if len(data) == 0 {
 		log.Println("No monospace TTF found, falling back to bitmap font")
-		return basicfont.Face7x13
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		log.Printf("Failed to read font %s: %v", path, err)
 		return basicfont.Face7x13
 	}
 	fnt, err := opentype.Parse(data)
@@ -104,6 +99,9 @@ type KeyboardWidget struct {
 	model              string
 	selected           map[int]bool
 	hoveredKey         int
+	dragAnchor         fyne.Position
+	dragging           bool
+	dragStartSelected  map[int]bool
 	raster             *canvas.Raster
 	keyFace            font.Face
 	defaultKeyColor    color.Color
@@ -236,6 +234,66 @@ func (k *KeyboardWidget) MouseOut() {
 	}
 }
 
+func (k *KeyboardWidget) Dragged(ev *fyne.DragEvent) {
+	if !k.dragging {
+		k.dragging = true
+		k.dragAnchor = ev.Position
+		k.dragStartSelected = make(map[int]bool)
+		for v := range k.selected {
+			k.dragStartSelected[v] = true
+		}
+	}
+
+	x1 := int(k.dragAnchor.X)
+	y1 := int(k.dragAnchor.Y)
+	x2 := int(ev.Position.X)
+	y2 := int(ev.Position.Y)
+	if x1 > x2 {
+		x1, x2 = x2, x1
+	}
+	if y1 > y2 {
+		y1, y2 = y2, y1
+	}
+
+	k.selected = make(map[int]bool)
+	for v := range k.dragStartSelected {
+		k.selected[v] = true
+	}
+	ld := k.layout
+	yy := 0
+	for _, row := range ld.Rows {
+		xx := 0
+		for _, key := range row {
+			kw := int(key.Width * ld.UnitSize)
+			kh := int(ld.RowHeight)
+			if rectsOverlap(x1, y1, x2-x1, y2-y1, xx, yy, kw, kh) {
+				if k.dragStartSelected[key.Value] {
+					delete(k.selected, key.Value)
+				} else {
+					k.selected[key.Value] = true
+				}
+			}
+			xx += kw + int(ld.Gap)
+		}
+		yy += int(ld.RowHeight) + int(ld.Gap)
+	}
+
+	k.Refresh()
+}
+
+func (k *KeyboardWidget) DragEnd() {
+	k.dragging = false
+	k.dragStartSelected = nil
+	if k.onSelectionChanged != nil {
+		k.onSelectionChanged()
+	}
+	k.Refresh()
+}
+
+func rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh int) bool {
+	return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by
+}
+
 func (k *KeyboardWidget) CreateRenderer() fyne.WidgetRenderer {
 	r := canvas.NewRaster(k.draw)
 	k.raster = r
@@ -290,35 +348,38 @@ func (k *KeyboardWidget) draw(w, h int) image.Image {
 
 func drawRoundedRect(img *image.RGBA, x, y, w, h, r int, col color.Color) {
 	rr, gg, bb, aa := col.RGBA()
-	for py := y; py < y+h && py < img.Bounds().Max.Y; py++ {
-		for px := x; px < x+w && px < img.Bounds().Max.X; px++ {
+	fill := color.RGBA{uint8(rr >> 8), uint8(gg >> 8), uint8(bb >> 8), uint8(aa >> 8)}
+	maxX := min(x+w, img.Bounds().Max.X)
+	maxY := min(y+h, img.Bounds().Max.Y)
+	r2 := r * r
+	w1 := w - r - 1
+	h1 := h - r - 1
+	for py := y; py < maxY; py++ {
+		for px := x; px < maxX; px++ {
 			dx := px - x
 			dy := py - y
 			if dx < r && dy < r {
-				if dx*dx+dy*dy > r*r {
+				if dx*dx+dy*dy > r2 {
+					continue
+				}
+			} else if dx >= w-r && dy < r {
+				dx2 := dx - w1
+				if dx2*dx2+dy*dy > r2 {
+					continue
+				}
+			} else if dx < r && dy >= h-r {
+				dy2 := dy - h1
+				if dx*dx+dy2*dy2 > r2 {
+					continue
+				}
+			} else if dx >= w-r && dy >= h-r {
+				dx2 := dx - w1
+				dy2 := dy - h1
+				if dx2*dx2+dy2*dy2 > r2 {
 					continue
 				}
 			}
-			if dx >= w-r && dy < r {
-				dx2 := dx - (w - r - 1)
-				if dx2*dx2+dy*dy > r*r {
-					continue
-				}
-			}
-			if dx < r && dy >= h-r {
-				dy2 := dy - (h - r - 1)
-				if dx*dx+dy2*dy2 > r*r {
-					continue
-				}
-			}
-			if dx >= w-r && dy >= h-r {
-				dx2 := dx - (w - r - 1)
-				dy2 := dy - (h - r - 1)
-				if dx2*dx2+dy2*dy2 > r*r {
-					continue
-				}
-			}
-			img.Set(px, py, color.RGBA{uint8(rr >> 8), uint8(gg >> 8), uint8(bb >> 8), uint8(aa >> 8)})
+			img.Set(px, py, fill)
 		}
 	}
 }
@@ -361,8 +422,14 @@ func (r *keyboardRenderer) Layout(s fyne.Size) {
 func (r *keyboardRenderer) MinSize() fyne.Size {
 	ld := r.widget.layout
 	w := 0
-	for _, k := range ld.Rows[0] {
-		w += int(k.Width*ld.UnitSize) + int(ld.Gap)
+	for _, row := range ld.Rows {
+		rw := 0
+		for _, k := range row {
+			rw += int(k.Width*ld.UnitSize) + int(ld.Gap)
+		}
+		if rw > w {
+			w = rw
+		}
 	}
 	h := len(ld.Rows)*(int(ld.RowHeight)+int(ld.Gap)) - int(ld.Gap)
 	return fyne.NewSize(float32(w), float32(h))

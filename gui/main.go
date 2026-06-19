@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"image/color"
 	"log"
@@ -162,7 +163,15 @@ func main() {
 
 	w := a.NewWindow("DrunkDeer Config")
 
-	model := driver.KEYBOARD_G60
+	modelFlag := flag.String("model", driver.KEYBOARD_G60, "keyboard model (G60, G65, G75, A75)")
+	flag.Parse()
+	model := *modelFlag
+	switch model {
+	case driver.KEYBOARD_G60, driver.KEYBOARD_G65, driver.KEYBOARD_G75, driver.KEYBOARD_A75:
+	default:
+		log.Printf("Unknown model %s, falling back to %s", model, driver.KEYBOARD_G60)
+		model = driver.KEYBOARD_G60
+	}
 	log.Printf("Using keyboard model: %s", model)
 
 	dir := configDir()
@@ -189,7 +198,7 @@ func main() {
 	actuationLabel := fynetool.NewLabel("Actuation\nPoint")
 	actuationLabel.Alignment = fyne.TextAlignCenter
 
-	actuationSlider := fynetool.NewSlider(0.2, 4.0)
+	actuationSlider := fynetool.NewSlider(0.2, 3.8)
 	actuationSlider.Step = 0.1
 	actuationSlider.Value = float64(profile.DefaultActuation)
 	actuationSlider.Orientation = fynetool.Vertical
@@ -214,7 +223,7 @@ func main() {
 		s = strings.TrimSuffix(s, "mm")
 		s = strings.TrimSpace(s)
 		v, err := strconv.ParseFloat(s, 64)
-		if err != nil || v < 0.2 || v > 4.0 {
+		if err != nil || v < 0.2 || v > 3.8 {
 			return
 		}
 		actUpdating = true
@@ -236,7 +245,7 @@ func main() {
 	rtLabel := fynetool.NewLabel("Rapid\nTrigger")
 	rtLabel.Alignment = fyne.TextAlignCenter
 
-	rtSlider := fynetool.NewSlider(0.2, 4.0)
+	rtSlider := fynetool.NewSlider(0.2, 3.8)
 	rtSlider.Step = 0.1
 	rtSlider.Value = float64(profile.RapidTrigger.DefaultDownstroke)
 	rtSlider.Orientation = fynetool.Vertical
@@ -262,7 +271,7 @@ func main() {
 		s = strings.TrimSuffix(s, "mm")
 		s = strings.TrimSpace(s)
 		v, err := strconv.ParseFloat(s, 64)
-		if err != nil || v < 0.2 || v > 4.0 {
+		if err != nil || v < 0.2 || v > 3.8 {
 			return
 		}
 		rtUpdating = true
@@ -288,6 +297,8 @@ func main() {
 	var pickingColor bool
 	var colorBtn *fynetool.Button
 	var currentPicker *kbwidget.ColorPicker
+	var savedSelAtOpen []int
+	var savedColorsAtOpen map[string]string
 	pickerContainer := container.New(layout.NewMaxLayout())
 
 	donePicking := func() {
@@ -296,20 +307,33 @@ func main() {
 		currentPicker = nil
 	}
 
+	cancelColor := func() {
+		donePicking()
+		profile.Light.Colors = savedColorsAtOpen
+		applyKeyboardColors(kb, profile, model)
+		kb.SelectKeys(savedSelAtOpen)
+		colorBtn.Enable()
+	}
+
 	colorBtn = fynetool.NewButton("Color...", func() {
-		savedSel := kb.SelectedKeys()
-		if len(savedSel) == 0 {
+		if pickingColor {
+			cancelColor()
 			return
 		}
 
-		savedColors := make(map[string]string)
+		savedSelAtOpen = kb.SelectedKeys()
+		if len(savedSelAtOpen) == 0 {
+			return
+		}
+
+		savedColorsAtOpen = make(map[string]string)
 		for k, v := range profile.Light.Colors {
-			savedColors[k] = v
+			savedColorsAtOpen[k] = v
 		}
 
 		initialHex := profile.Light.Color
 		for k, v := range profile.Light.Colors {
-			if driver.GetIndexByKey(k, model) == savedSel[0] {
+			if driver.GetIndexByKey(k, model) == savedSelAtOpen[0] {
 				initialHex = v
 				break
 			}
@@ -320,7 +344,7 @@ func main() {
 
 		currentPicker = kbwidget.NewColorPicker(initialHex,
 			func(hex string) {
-				for _, val := range savedSel {
+				for _, val := range savedSelAtOpen {
 					kb.SetIndividualColor(val, hex)
 					name := driver.GetKeyByIndex(val)
 					if name != "" {
@@ -333,16 +357,10 @@ func main() {
 			},
 			func(hex string) {
 				donePicking()
-				kb.SelectKeys(savedSel)
+				kb.SelectKeys(savedSelAtOpen)
 				colorBtn.Enable()
 			},
-			func() {
-				donePicking()
-				profile.Light.Colors = savedColors
-				applyKeyboardColors(kb, profile, model)
-				kb.SelectKeys(savedSel)
-				colorBtn.Enable()
-			},
+			cancelColor,
 		)
 		currentPicker.Destroy = donePicking
 		pickerContainer.RemoveAll()
@@ -367,7 +385,7 @@ func main() {
 			log.Printf("Error writing temp profile: %v", err)
 			return
 		}
-		cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "load", tmpPath)
+		cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "--debug", "load", tmpPath)
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
@@ -394,6 +412,8 @@ func main() {
 	var selecting bool
 	var profileSelect *fynetool.Select
 	var rtCheck, turboCheck *fynetool.Check
+	var turboHexUpdating bool
+	turboHexEntry := fynetool.NewEntry()
 	profileSelect = fynetool.NewSelect(profileOptions, func(name string) {
 		if selecting {
 			return
@@ -447,6 +467,13 @@ func main() {
 					if turboCheck != nil {
 						turboCheck.SetChecked(p.Turbo)
 					}
+					turboHexUpdating = true
+					if p.Light.TurboColor != "" {
+						turboHexEntry.SetText(p.Light.TurboColor)
+					} else {
+						turboHexEntry.SetText(p.Light.Color)
+					}
+					turboHexUpdating = false
 				},
 				w,
 			)
@@ -473,6 +500,13 @@ func main() {
 		if turboCheck != nil {
 			turboCheck.SetChecked(profile.Turbo)
 		}
+		turboHexUpdating = true
+		if profile.Light.TurboColor != "" {
+			turboHexEntry.SetText(profile.Light.TurboColor)
+		} else {
+			turboHexEntry.SetText(profile.Light.Color)
+		}
+		turboHexUpdating = false
 	})
 	profileSelect.SetSelected(currentProfile)
 
@@ -505,13 +539,39 @@ func main() {
 	})
 	rtCheck.SetChecked(profile.RapidTrigger.Enabled)
 
+	if profile.Light.TurboColor != "" {
+		turboHexEntry.SetText(profile.Light.TurboColor)
+	} else {
+		turboHexEntry.SetText(profile.Light.Color)
+	}
+	turboHexEntry.SetPlaceHolder("#RRGGBB")
+	turboHexEntry.OnChanged = func(s string) {
+		if turboHexUpdating {
+			return
+		}
+		profile.Light.TurboColor = s
+		applyKeyboardColors(kb, profile, model)
+	}
+	if profile.Turbo {
+		turboHexEntry.Enable()
+	} else {
+		turboHexEntry.Disable()
+	}
+	turboHexWrapped := &minSizeWrap{inner: turboHexEntry, minsize: fyne.NewSize(90, 32)}
+	turboHexWrapped.ExtendBaseWidget(turboHexWrapped)
+
 	turboCheck = fynetool.NewCheck("Turbo", func(checked bool) {
 		profile.Turbo = checked
 		applyKeyboardColors(kb, profile, model)
+		if checked {
+			turboHexEntry.Enable()
+		} else {
+			turboHexEntry.Disable()
+		}
 	})
 	turboCheck.SetChecked(profile.Turbo)
 
-	topBar := container.NewBorder(nil, nil, container.NewHBox(profileSelect, deleteBtn, openBtn, rtCheck, turboCheck), nil)
+	topBar := container.NewBorder(nil, nil, container.NewHBox(profileSelect, deleteBtn, openBtn, rtCheck, turboCheck, turboHexWrapped), nil)
 
 	kbCentered := container.NewCenter(
 		container.NewVBox(
@@ -534,6 +594,29 @@ func main() {
 	w.CenterOnScreen()
 	w.ShowAndRun()
 }
+
+type minSizeWrap struct {
+	fynetool.BaseWidget
+	inner   fyne.CanvasObject
+	minsize fyne.Size
+}
+
+func (m *minSizeWrap) CreateRenderer() fyne.WidgetRenderer {
+	return &minSizeRender{obj: m.inner, minSize: m.minsize}
+}
+
+type minSizeRender struct {
+	obj     fyne.CanvasObject
+	minSize fyne.Size
+}
+
+func (r *minSizeRender) Objects() []fyne.CanvasObject              { return []fyne.CanvasObject{r.obj} }
+func (r *minSizeRender) Layout(s fyne.Size)                          { r.obj.Resize(s) }
+func (r *minSizeRender) MinSize() fyne.Size                          { return r.minSize }
+func (r *minSizeRender) Refresh()                                    {}
+func (r *minSizeRender) ApplyTheme()                                 {}
+func (r *minSizeRender) BackgroundColor() color.Color                { return color.Transparent }
+func (r *minSizeRender) Destroy()                                    {}
 
 var monoFont fyne.Resource
 

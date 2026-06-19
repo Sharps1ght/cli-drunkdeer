@@ -90,29 +90,21 @@ func BuildModifyRow(row uint8, keys []byte, defaultValue byte) []byte {
 	report[2] = 0x00
 	report[3] = row
 
-	if len(keys) > 59 {
-		keys = keys[:59]
+	maxKeys := 59
+	if row == 2 {
+		maxKeys = 8
+	}
+	if len(keys) > maxKeys {
+		keys = keys[:maxKeys]
 	}
 
-	if len(keys) > 8 && row == 2 {
-		keys = keys[:8]
-	}
-
-	if len(keys) < 59 && row != 2 {
-		for i := len(keys); i < 59; i++ {
-			keys = append(keys, defaultValue)
+	// Fill report starting at offset 4
+	for i := 0; i < maxKeys; i++ {
+		if i < len(keys) {
+			report[i+4] = keys[i]
+		} else {
+			report[i+4] = defaultValue
 		}
-	}
-
-	// I'm paranoid about drunkdeer firmware, so let's make sure we have the right amount of keys
-	if len(keys) < 8 && row == 2 {
-		for i := len(keys); i < 8; i++ {
-			keys = append(keys, defaultValue)
-		}
-	}
-
-	for i := 0; i < len(keys); i++ {
-		report[i+4] = keys[i]
 	}
 
 	return report

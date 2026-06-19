@@ -64,44 +64,55 @@ const (
 
 const LAYOUT_SIZE = 126
 
-type Layout [LAYOUT_SIZE]string
+type Layout struct {
+	names [LAYOUT_SIZE]string
+	index map[string]int
+}
+
+func newLayout(names [LAYOUT_SIZE]string) Layout {
+	l := Layout{names: names, index: make(map[string]int, LAYOUT_SIZE)}
+	for i, n := range names {
+		if n != "" {
+			l.index[n] = i
+		}
+	}
+	return l
+}
 
 func (l Layout) IndexOf(name string) int {
-	for i, n := range l {
-		if n == name {
-			return i
-		}
+	if idx, ok := l.index[name]; ok {
+		return idx
 	}
 	return -1
 }
 
-var a75Layout = Layout{
+var a75Layout = newLayout([LAYOUT_SIZE]string{
 	0: "ESC",
 	2: "F1", 3: "F2", 4: "F3", 5: "F4", 6: "F5", 7: "F6", 8: "F7", 9: "F8", 10: "F9", 11: "F10", 12: "F11", 13: "F12",
-	14: "KP7", 15: "KP8", 16: "KP9",
+	14: "DEL",
 	21: "TILDE",
 	22: "1", 23: "2", 24: "3", 25: "4", 26: "5", 27: "6", 28: "7", 29: "8", 30: "9", 31: "0",
 	32: "MINUS", 33: "PLUS", 34: "BACK",
-	35: "KP4", 36: "KP5", 37: "KP6",
+	36: "HOME",
 	42: "TAB",
 	43: "Q", 44: "W", 45: "E", 46: "R", 47: "T", 48: "Y", 49: "U", 50: "I", 51: "O", 52: "P",
 	53: "BRKTS_L", 54: "BRKTS_R", 55: "SLASH_K29",
-	56: "KP1", 57: "KP2", 58: "KP3",
+	57: "PGUP",
 	63: "CAPS",
 	64: "A", 65: "S", 66: "D", 67: "F", 68: "G", 69: "H", 70: "J", 71: "K", 72: "L",
 	73: "COLON", 74: "QOTATN", 76: "RETURN",
-	77: "KP0", 78: "KP_DEL",
+	78: "PGDN",
 	84: "SHF_L",
-	85: "EUR_K45",
 	86: "Z", 87: "X", 88: "C", 89: "V", 90: "B", 91: "N", 92: "M",
 	93: "COMMA", 94: "PERIOD", 95: "SLASH",
-	97: "SHF_R", 98: "ARR_UP", 100: "NUMS",
+	97: "SHF_R", 98: "ARR_UP", 99: "END",
 	105: "CTRL_L", 106: "WIN_L", 107: "ALT_L",
 	111: "SPACE",
-	115: "ALT_R", 116: "FN1", 117: "APP", 118: "ARR_L", 119: "ARR_DW", 120: "ARR_R", 121: "CTRL_R",
-}
+	115: "ALT_R", 116: "FN1", 117: "MENU",
+	119: "ARR_L", 120: "ARR_DW", 121: "ARR_R",
+})
 
-var g60Layout = Layout{
+var g60Layout = newLayout([LAYOUT_SIZE]string{
 	21: "ESC",
 	22: "1", 23: "2", 24: "3", 25: "4", 26: "5", 27: "6", 28: "7", 29: "8", 30: "9", 31: "0",
 	32: "MINUS", 33: "PLUS", 34: "BACK",
@@ -121,12 +132,73 @@ var g60Layout = Layout{
 	105: "CTRL_L", 106: "WIN_L", 107: "ALT_L",
 	111: "SPACE",
 	115: "ALT_R", 116: "FN1", 117: "FN2", 118: "CTRL_R",
-}
+})
+
+var g65Layout = newLayout([LAYOUT_SIZE]string{
+	21: "ESC",
+	22: "1", 23: "2", 24: "3", 25: "4", 26: "5", 27: "6", 28: "7", 29: "8", 30: "9", 31: "0",
+	32: "MINUS", 33: "PLUS", 34: "BACK", 35: "DEL",
+	42: "TAB",
+	43: "Q", 44: "W", 45: "E", 46: "R", 47: "T", 48: "Y",
+	49: "U", 50: "I", 51: "O", 52: "P",
+	53: "BRKTS_L", 55: "SLASH_K29", 56: "END",
+	63: "CAPS",
+	64: "A", 65: "S", 66: "D", 67: "F", 68: "G", 69: "H",
+	70: "J", 71: "K", 72: "L",
+	73: "COLON", 74: "QOTATN", 76: "RETURN", 77: "PGUP",
+	84: "SHF_L",
+	86: "Z", 87: "X", 88: "C", 89: "V",
+	90: "B", 91: "N", 92: "M",
+	93: "COMMA", 94: "PERIOD", 95: "SLASH",
+	96: "SHF_R",
+	97: "ARR_UP",
+	98: "PGDN",
+	105: "CTRL_L", 106: "WIN_L", 107: "ALT_L",
+	111: "SPACE",
+	114: "ALT_R", 115: "FN1", 116: "MENU",
+	117: "ARR_L", 118: "ARR_DW", 119: "ARR_R",
+})
+
+var g75Layout = newLayout([LAYOUT_SIZE]string{
+	0: "ESC",
+	1: "F1", 2: "F2", 3: "F3", 4: "F4", 5: "F5", 6: "F6",
+	7: "F7", 8: "F8", 9: "F9", 10: "F10", 11: "F11", 12: "F12",
+	13: "PRINT", 14: "INS", 15: "DEL",
+	21: "TILDE",
+	22: "1", 23: "2", 24: "3", 25: "4", 26: "5", 27: "6",
+	28: "7", 29: "8", 30: "9", 31: "0", 32: "MINUS", 33: "PLUS", 34: "BACK",
+	36: "HOME",
+	42: "TAB",
+	43: "Q", 44: "W", 45: "E", 46: "R", 47: "T", 48: "Y",
+	49: "U", 50: "I", 51: "O", 52: "P",
+	53: "BRKTS_L", 54: "BRKTS_R", 55: "SLASH_K29",
+	57: "PGUP",
+	63: "CAPS",
+	64: "A", 65: "S", 66: "D", 67: "F", 68: "G", 69: "H",
+	70: "J", 71: "K", 72: "L",
+	73: "COLON", 74: "QOTATN", 76: "RETURN",
+	78: "PGDN",
+	84: "SHF_L",
+	86: "Z", 87: "X", 88: "C", 89: "V", 90: "B", 91: "N", 92: "M",
+	93: "COMMA", 94: "PERIOD", 95: "SLASH",
+	96: "SHF_R",
+	97: "ARR_UP",
+	99: "END",
+	105: "CTRL_L", 106: "WIN_L", 107: "ALT_L",
+	111: "SPACE",
+	114: "ALT_R", 115: "FN1",
+	117: "MENU",
+	118: "ARR_L", 119: "ARR_DW", 120: "ARR_R",
+})
 
 func GetLayout(model string) Layout {
 	switch model {
 	case KEYBOARD_G60:
 		return g60Layout
+	case KEYBOARD_G65:
+		return g65Layout
+	case KEYBOARD_G75:
+		return g75Layout
 	default:
 		return a75Layout
 	}

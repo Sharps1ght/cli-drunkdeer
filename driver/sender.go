@@ -83,12 +83,14 @@ func (d *DrunkDeerController) QueuePacket(p []byte) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	var packet []byte
-	if len(p) != 63 {
-		packet = make([]byte, 63)
-		copy(packet[:], p[:])
-	} else {
-		packet = p
+	packet := packetPool.Get().([]byte)
+	n := len(p)
+	if n > 63 {
+		n = 63
+	}
+	copy(packet, p)
+	for i := n; i < 63; i++ {
+		packet[i] = 0
 	}
 
 	d.packetWg.Add(1)

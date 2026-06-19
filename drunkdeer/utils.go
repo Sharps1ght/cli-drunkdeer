@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/2xxn/cli-drunkdeer/driver"
 	"github.com/fatih/color"
@@ -19,10 +20,11 @@ func DEBUG(format string, v ...any) {
 		return
 	}
 
+	ts := time.Now().Format("15:04:05.000")
 	if format[len(format)-1] != '\n' {
 		format += "\n"
 	}
-	debugPrefix := color.HiGreenString("[DEBUG] ")
+	debugPrefix := color.HiGreenString("[DEBUG %s] ", ts)
 	fmt.Printf(debugPrefix+format, v...)
 }
 
