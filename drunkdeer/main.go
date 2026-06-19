@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	defaultProfilePath        = "~/.drunkdeer"
+	defaultProfilePath        = "~/.config/drunkdeer"
 	defaultWaitPerInstruction = 100 * time.Millisecond
 )
 

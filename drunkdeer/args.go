@@ -19,13 +19,19 @@ func (a *App) handleArgs() {
 
 	switch a.args.Command {
 	case "load":
-		a.args.Load = a.args.CmdValue
+		if len(a.args.CmdValue) > 0 {
+			a.args.Load = a.args.CmdValue[0]
+		}
 	case "save":
-		a.args.Save = a.args.CmdValue
+		if len(a.args.CmdValue) > 0 {
+			a.args.Save = a.args.CmdValue[0]
+		}
 	case "reset":
 		a.args.Reset = true
 	case "import":
-		a.args.Import = a.args.CmdValue
+		if len(a.args.CmdValue) > 0 {
+			a.args.Import = a.args.CmdValue[0]
+		}
 	case "version":
 		a.showVersion()
 	case "list":
@@ -54,7 +60,7 @@ func (a *App) handleArgs() {
 }
 
 func (a *App) showVersion() {
-	fmt.Println("Version 1.0.0")
+	fmt.Println("Version 1.0.1")
 	os.Exit(0)
 }
 

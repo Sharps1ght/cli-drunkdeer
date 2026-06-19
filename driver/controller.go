@@ -39,7 +39,7 @@ func (d *DrunkDeerController) sendReport(p []byte) {
 
 	_, err := d.device.Write(report)
 	if err != nil {
-		panic(err)
+		d.Log("Write error: %v", err)
 	}
 }
 
@@ -264,8 +264,8 @@ func (d *DrunkDeerController) drunkDeerReporter() {
 			}
 			d.sendReport(p)
 			d.packetWg.Done()
-			time.Sleep(1 * time.Millisecond)
-		case <-time.After(1 * time.Millisecond):
+			time.Sleep(5 * time.Millisecond)
+		case <-time.After(100 * time.Millisecond):
 			if d.shouldClose {
 				return
 			}

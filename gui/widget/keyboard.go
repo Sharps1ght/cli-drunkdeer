@@ -6,7 +6,9 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
+	"sync"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -17,6 +19,20 @@ import (
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 )
+
+var monoFontData []byte
+var monoFontOnce sync.Once
+
+func MonospaceFontData() []byte {
+	monoFontOnce.Do(func() {
+		path := findSystemMonospace()
+		if path == "" {
+			return
+		}
+		monoFontData, _ = os.ReadFile(path)
+	})
+	return monoFontData
+}
 
 func loadMonospaceFont() font.Face {
 	path := findSystemMonospace()
@@ -84,24 +100,87 @@ func findSystemMonospace() string {
 
 type KeyboardWidget struct {
 	widget.BaseWidget
-	layout     LayoutDef
-	model      string
-	selected   map[int]bool
-	hoveredKey int
-	raster     *canvas.Raster
-	keyFace    font.Face
+	layout             LayoutDef
+	model              string
+	selected           map[int]bool
+	hoveredKey         int
+	raster             *canvas.Raster
+	keyFace            font.Face
+	defaultKeyColor    color.Color
+	customColors       map[int]color.Color
+	onSelectionChanged func()
 }
 
 func NewKeyboardWidget(model string) *KeyboardWidget {
 	k := &KeyboardWidget{
-		layout:     GetLayoutDef(model),
-		model:      model,
-		selected:   make(map[int]bool),
-		hoveredKey: -1,
-		keyFace:    loadMonospaceFont(),
+		layout:         GetLayoutDef(model),
+		model:          model,
+		selected:       make(map[int]bool),
+		hoveredKey:     -1,
+		keyFace:        loadMonospaceFont(),
+		defaultKeyColor: color.RGBA{0x2d, 0x2d, 0x2d, 0xff},
+		customColors:   make(map[int]color.Color),
 	}
 	k.ExtendBaseWidget(k)
 	return k
+}
+
+func parseHexColor(hex string) color.Color {
+	if !strings.HasPrefix(hex, "#") || len(hex) != 7 {
+		return color.RGBA{0x2d, 0x2d, 0x2d, 0xff}
+	}
+	r, _ := strconv.ParseUint(hex[1:3], 16, 8)
+	g, _ := strconv.ParseUint(hex[3:5], 16, 8)
+	b, _ := strconv.ParseUint(hex[5:7], 16, 8)
+	return color.RGBA{uint8(r), uint8(g), uint8(b), 0xff}
+}
+
+func (k *KeyboardWidget) SetColors(defaultFill string, perKey map[int]string) {
+	if defaultFill != "" {
+		k.defaultKeyColor = parseHexColor(defaultFill)
+	} else {
+		k.defaultKeyColor = color.RGBA{0x2d, 0x2d, 0x2d, 0xff}
+	}
+	k.customColors = make(map[int]color.Color)
+	for idx, hex := range perKey {
+		k.customColors[idx] = parseHexColor(hex)
+	}
+	k.Refresh()
+}
+
+func (k *KeyboardWidget) SetIndividualColor(idx int, hex string) {
+	k.customColors[idx] = parseHexColor(hex)
+	k.Refresh()
+}
+
+func (k *KeyboardWidget) SelectedKeys() []int {
+	var keys []int
+	for v := range k.selected {
+		keys = append(keys, v)
+	}
+	return keys
+}
+
+func (k *KeyboardWidget) ClearSelection() {
+	k.selected = make(map[int]bool)
+	if k.onSelectionChanged != nil {
+		k.onSelectionChanged()
+	}
+	k.Refresh()
+}
+
+func (k *KeyboardWidget) SelectKeys(keys []int) {
+	for _, v := range keys {
+		k.selected[v] = true
+	}
+	if k.onSelectionChanged != nil {
+		k.onSelectionChanged()
+	}
+	k.Refresh()
+}
+
+func (k *KeyboardWidget) SetOnSelectionChanged(f func()) {
+	k.onSelectionChanged = f
 }
 
 func (k *KeyboardWidget) keyAt(x, y int) int {
@@ -131,6 +210,9 @@ func (k *KeyboardWidget) Tapped(ev *fyne.PointEvent) {
 		delete(k.selected, v)
 	} else {
 		k.selected[v] = true
+	}
+	if k.onSelectionChanged != nil {
+		k.onSelectionChanged()
 	}
 	k.Refresh()
 }
@@ -186,7 +268,11 @@ func (k *KeyboardWidget) draw(w, h int) image.Image {
 				keyCol = color.RGBA{0x40, 0x40, 0x40, 0xff}
 				textCol = color.RGBA{0xff, 0xff, 0xff, 0xff}
 			default:
-				keyCol = color.RGBA{0x2d, 0x2d, 0x2d, 0xff}
+				if c, ok := k.customColors[key.Value]; ok {
+					keyCol = c
+				} else {
+					keyCol = k.defaultKeyColor
+				}
 				textCol = color.RGBA{0xcc, 0xcc, 0xcc, 0xff}
 			}
 

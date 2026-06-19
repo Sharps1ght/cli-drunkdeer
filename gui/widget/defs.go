@@ -149,3 +149,14 @@ var GetLayoutDef = func(model string) LayoutDef {
 	}
 	return A75Layout()
 }
+
+func (l LayoutDef) FindByName(name string) int {
+	for _, row := range l.Rows {
+		for _, k := range row {
+			if k.Name == name {
+				return k.Value
+			}
+		}
+	}
+	return -1
+}

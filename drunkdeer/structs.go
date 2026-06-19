@@ -81,6 +81,7 @@ type LightSettings struct {
 	Brightness int               `json:"brightness"`
 	Color      *ColorSetting     `json:"color,omitempty"`
 	Colors     map[string]string `json:"colors,omitempty"`
+	TurboColor *ColorSetting     `json:"turboColor,omitempty"`
 }
 
 type RemapSettings struct {
@@ -101,11 +102,11 @@ type Config struct {
 }
 
 type Args struct {
-	Command  string `arg:"positional"`
-	CmdValue string `arg:"positional"`
-	Import   string `arg:"-i,--import" help:"Import a drunkdeer webdriver profile from the specified file/url"`
-	Debug    bool   `arg:"-d,--debug" help:"Enable debug mode"`
-	Index    int    `arg:"-i,--index" help:"Keyboard index to use (0 for first device, 1 for second, etc.)"`
+	Command  string   `arg:"positional"`
+	CmdValue []string `arg:"positional"`
+	Import   string   `arg:"-i,--import" help:"Import a drunkdeer webdriver profile from the specified file/url"`
+	Debug    bool     `arg:"-d,--debug" help:"Enable debug mode"`
+	Index    int      `arg:"-i,--index" help:"Keyboard index to use (0 for first device, 1 for second, etc.)"`
 	Profiles bool   `arg:"-p,--profiles" help:"Show all available profiles"`
 	Reset    bool   `arg:"-r,--reset" help:"Reset the keyboard to default settings"`
 	Load     string `arg:"-L,--load" help:"Load a profile from the specified file/url"`

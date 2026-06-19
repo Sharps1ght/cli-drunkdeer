@@ -15,12 +15,12 @@ func (d *DrunkDeerController) SendLEDModeSelectTurbo(direction, sequence, speed,
 	d.QueuePacket(report)
 }
 
-func (d *DrunkDeerController) SendCustomColorPacket(colorData []byte, brightness byte) {
-	report := BuildCustomColorPacket(colorData, brightness)
+func (d *DrunkDeerController) SendCustomColorPacket(colorData []byte, brightness byte, turbo bool) {
+	report := BuildCustomColorPacket(colorData, brightness, turbo)
 	d.QueuePacket(report)
 }
 
-func (d *DrunkDeerController) SendCustomColorData(colors map[int][3]byte, brightness byte, defaultColor [3]byte) {
+func (d *DrunkDeerController) SendCustomColorData(colors map[int][3]byte, brightness byte, defaultColor [3]byte, turbo bool) {
 	const chunkSize = COLORS_PER_PACKET * BYTES_PER_KEY
 
 	var flat []byte
@@ -40,11 +40,11 @@ func (d *DrunkDeerController) SendCustomColorData(colors map[int][3]byte, bright
 		if end > len(flat) {
 			end = len(flat)
 		}
-		d.SendCustomColorPacket(flat[offset:end], brightness)
+		d.SendCustomColorPacket(flat[offset:end], brightness, turbo)
 	}
 
 	// send empty terminator packet (webdriver sends E=6 for G60, last is empty)
-	d.SendCustomColorPacket(nil, brightness)
+	d.SendCustomColorPacket(nil, brightness, turbo)
 }
 
 func (d *DrunkDeerController) SendLEDModeDisable() {
@@ -80,6 +80,9 @@ func (d *DrunkDeerController) SendRemapData(keys map[int]*RemapKey, layer byte) 
 }
 
 func (d *DrunkDeerController) QueuePacket(p []byte) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	var packet []byte
 	if len(p) != 63 {
 		packet = make([]byte, 63)
@@ -93,5 +96,8 @@ func (d *DrunkDeerController) QueuePacket(p []byte) {
 }
 
 func (d *DrunkDeerController) Flush() {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
 	d.packetWg.Wait()
 }

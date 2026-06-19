@@ -18,6 +18,7 @@ type DrunkDeerController struct {
 	rapidTrigger bool
 	debug        bool
 
+	mu          sync.Mutex
 	wg          sync.WaitGroup
 	packetWg    sync.WaitGroup
 	packetChan  chan DDPacket
@@ -42,6 +43,8 @@ type DDLight struct {
 	Color        byte
 	Colors       map[int][3]byte // per-key custom colors (key index → RGB)
 	DefaultColor [3]byte         // fallback color for unset keys in custom mode
+
+	TurboDefaultColor [3]byte // uniform color for turbo custom mode (no per-key)
 }
 
 type DDKeyboardIdentity struct {

@@ -2,6 +2,7 @@ package driver
 
 import (
 	"bytes"
+	"strconv"
 )
 
 func BoolToByte(b bool) byte {
@@ -77,6 +78,21 @@ func GetKeyByIndex(index int) string {
 		return a75Layout[index]
 	}
 	return ""
+}
+
+// ResolveKeyToIndex returns the firmware index for a key.
+// Tries name lookup first, then parses as a numeric firmware index.
+func ResolveKeyToIndex(key string, model string) (int, bool) {
+	idx := GetIndexByKey(key, model)
+	if idx >= 0 {
+		return idx, true
+	}
+	if n, err := strconv.Atoi(key); err == nil {
+		if n >= 0 && n < LAYOUT_SIZE {
+			return n, true
+		}
+	}
+	return -1, false
 }
 
 func GetLayoutKeys(model string) []string {

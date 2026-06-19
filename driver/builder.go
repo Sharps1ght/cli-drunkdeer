@@ -62,18 +62,21 @@ func BuildKeyTracking(track bool) []byte {
 	}
 }
 
-func BuildCustomColorPacket(colorData []byte, brightness byte) []byte {
+func BuildCustomColorPacket(colorData []byte, brightness byte, turbo bool) []byte {
 	report := make([]byte, 63)
 	report[0] = PACKET_LEDMODESEL
 	report[1] = 0x01
-	report[2] = 0x00 // turbo flag (0 = non-turbo custom mode)
+	if turbo {
+		report[2] = 0x01 // turbo flag (1 = turbo custom mode)
+	} else {
+		report[2] = 0x00 // turbo flag (0 = non-turbo custom mode)
+	}
 	report[3] = 0x00
 	report[4] = SEQUENCE_CUSTOM
 	report[5] = 0x06 // data type: custom color
 	report[6] = brightness
 	report[7] = 0xFF // header terminator
 	copy(report[8:], colorData)
-	// terminator right after color data, matching webdriver's sendTurboLedModeData
 	report[8+len(colorData)] = 0xFF
 
 	return report
