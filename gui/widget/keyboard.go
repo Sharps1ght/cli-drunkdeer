@@ -58,7 +58,8 @@ func loadMonospaceFont() font.Face {
 }
 
 func findSystemMonospace() string {
-	for _, q := range []string{"monospace:style=Bold", "monospace:bold", "monospace"} {
+	for _, q := range []string{"MartianMono Nerd Font:style=Bold", "MartianMono Nerd Font:style=Regular", "MartianMono Nerd Font",
+		"monospace:style=Bold", "monospace:bold", "monospace"} {
 		out, err := exec.Command("fc-match", "--format=%{file}", q).Output()
 		if err == nil {
 			p := strings.TrimSpace(string(out))
@@ -107,6 +108,9 @@ type KeyboardWidget struct {
 	defaultKeyColor    color.Color
 	customColors       map[int]color.Color
 	onSelectionChanged func()
+	remapMode     string
+	remappedKeys  map[int]bool
+	remapNames    map[int]string
 }
 
 func NewKeyboardWidget(model string) *KeyboardWidget {
@@ -294,6 +298,13 @@ func rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh int) bool {
 	return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by
 }
 
+func (k *KeyboardWidget) SetRemapMode(mode string, remappedKeys map[int]bool, remapNames map[int]string) {
+	k.remapMode = mode
+	k.remappedKeys = remappedKeys
+	k.remapNames = remapNames
+	k.Refresh()
+}
+
 func (k *KeyboardWidget) CreateRenderer() fyne.WidgetRenderer {
 	r := canvas.NewRaster(k.draw)
 	k.raster = r
@@ -326,7 +337,9 @@ func (k *KeyboardWidget) draw(w, h int) image.Image {
 				keyCol = color.RGBA{0x40, 0x40, 0x40, 0xff}
 				textCol = color.RGBA{0xff, 0xff, 0xff, 0xff}
 			default:
-				if c, ok := k.customColors[key.Value]; ok {
+				if k.remappedKeys != nil && !k.remappedKeys[key.Value] {
+					keyCol = color.RGBA{0x1a, 0x1a, 0x1a, 0xff}
+				} else if c, ok := k.customColors[key.Value]; ok {
 					keyCol = c
 				} else {
 					keyCol = k.defaultKeyColor
@@ -336,7 +349,15 @@ func (k *KeyboardWidget) draw(w, h int) image.Image {
 
 			drawRoundedRect(img, x, y, kw, kh, 4, keyCol)
 
-			drawCenteredText(img, key.Name, x, y, kw, kh, textCol, k.keyFace)
+			label := key.Name
+			if k.remapMode != "" {
+				if name, ok := k.remapNames[key.Value]; ok {
+					label = name
+				} else if k.remappedKeys != nil && !k.remappedKeys[key.Value] {
+					label = "-"
+				}
+			}
+			drawCenteredText(img, label, x, y, kw, kh, textCol, k.keyFace)
 
 			x += kw + int(ld.Gap)
 		}

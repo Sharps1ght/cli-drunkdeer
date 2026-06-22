@@ -86,8 +86,8 @@ type LightSettings struct {
 
 type RemapSettings struct {
 	Default map[string]string `json:"Default,omitempty"`
-	Fn1     map[string]string `json:"Fn1,omitempty"`
-	Fn2     map[string]string `json:"Fn2,omitempty"`
+	Fn      map[string]string `json:"Fn,omitempty"`
+	Menu    map[string]string `json:"Menu,omitempty"`
 }
 
 type Config struct {

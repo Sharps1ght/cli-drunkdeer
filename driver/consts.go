@@ -29,8 +29,9 @@ const (
 // G60-specific LED mode sequence values
 // Derived from the webdriver's adjusted array indices (Math.max(0, arrayIndex - 2))
 const (
-	SEQUENCE_OFF         = 0x00
-	SEQUENCE_WAVE        = 0x02 // 光谱波浪 (spectrum wave)
+	SEQUENCE_OFF           = 0x00
+	SEQUENCE_ROTATE_MARQUEE = 0x01 // 旋转跑灯 (rotating marquee)
+	SEQUENCE_WAVE          = 0x02 // 光谱波浪 (spectrum wave)
 	SEQUENCE_SURF_RIGHT  = 0x03 // 往右冲浪 (right surfing)
 	SEQUENCE_BREATH      = 0x04 // 呼吸 (breathing)
 	SEQUENCE_SURF_CENTER = 0x05 // 往中冲浪 (center surfing)
@@ -108,7 +109,7 @@ var a75Layout = newLayout([LAYOUT_SIZE]string{
 	97: "SHF_R", 98: "ARR_UP", 99: "END",
 	105: "CTRL_L", 106: "WIN_L", 107: "ALT_L",
 	111: "SPACE",
-	115: "ALT_R", 116: "FN1", 117: "MENU",
+	115: "ALT_R", 116: "FN", 117: "MENU",
 	119: "ARR_L", 120: "ARR_DW", 121: "ARR_R",
 })
 
@@ -131,7 +132,7 @@ var g60Layout = newLayout([LAYOUT_SIZE]string{
 	97: "SHF_R",
 	105: "CTRL_L", 106: "WIN_L", 107: "ALT_L",
 	111: "SPACE",
-	115: "ALT_R", 116: "FN1", 117: "FN2", 118: "CTRL_R",
+	115: "ALT_R", 116: "FN", 117: "MENU", 118: "CTRL_R",
 })
 
 var g65Layout = newLayout([LAYOUT_SIZE]string{
@@ -155,7 +156,7 @@ var g65Layout = newLayout([LAYOUT_SIZE]string{
 	98: "PGDN",
 	105: "CTRL_L", 106: "WIN_L", 107: "ALT_L",
 	111: "SPACE",
-	114: "ALT_R", 115: "FN1", 116: "MENU",
+	114: "ALT_R", 115: "FN", 116: "MENU",
 	117: "ARR_L", 118: "ARR_DW", 119: "ARR_R",
 })
 
@@ -186,7 +187,7 @@ var g75Layout = newLayout([LAYOUT_SIZE]string{
 	99: "END",
 	105: "CTRL_L", 106: "WIN_L", 107: "ALT_L",
 	111: "SPACE",
-	114: "ALT_R", 115: "FN1",
+	114: "ALT_R", 115: "FN",
 	117: "MENU",
 	118: "ARR_L", 119: "ARR_DW", 120: "ARR_R",
 })

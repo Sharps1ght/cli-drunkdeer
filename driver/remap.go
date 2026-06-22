@@ -81,16 +81,16 @@ var actionLookup = map[string]RemapKey{
 	"APP":    {0xFC, 0x65, 0},
 
 	"NUMS":   {0xFC, 0x53, 0},
-	"KP7":    {0xFC, 0x5F, 0},
-	"KP8":    {0xFC, 0x60, 0},
-	"KP9":    {0xFC, 0x61, 0},
-	"KP4":    {0xFC, 0x5C, 0},
-	"KP5":    {0xFC, 0x5D, 0},
-	"KP6":    {0xFC, 0x5E, 0},
-	"KP1":    {0xFC, 0x59, 0},
-	"KP2":    {0xFC, 0x5A, 0},
-	"KP3":    {0xFC, 0x5B, 0},
-	"KP0":    {0xFC, 0x62, 0},
+	"NUM7":    {0xFC, 0x5F, 0},
+	"NUM8":    {0xFC, 0x60, 0},
+	"NUM9":    {0xFC, 0x61, 0},
+	"NUM4":    {0xFC, 0x5C, 0},
+	"NUM5":    {0xFC, 0x5D, 0},
+	"NUM6":    {0xFC, 0x5E, 0},
+	"NUM1":    {0xFC, 0x59, 0},
+	"NUM2":    {0xFC, 0x5A, 0},
+	"NUM3":    {0xFC, 0x5B, 0},
+	"NUM0":    {0xFC, 0x62, 0},
 	"KP_DEL":   {0xFC, 0x63, 0},
 	"KP_ENTER": {0xFC, 0x58, 0},
 	"KP_PLUS":  {0xFC, 0x57, 0},
@@ -146,6 +146,27 @@ var actionLookup = map[string]RemapKey{
 func GetRemapAction(name string) (RemapKey, bool) {
 	k, ok := actionLookup[name]
 	return k, ok
+}
+
+var actionDisplayNames = map[string]string{
+	"VOL_UP":   "\U000F075D",
+	"VOL_DN":   "\U000F075E",
+	"PREV":     "\U000F04AE",
+	"NEXT":     "\U000F04AD",
+	"PLAY":     "\U000F040A",
+	"STOP":     "\U000F03E4",
+	"MUTE":     "\U000F075F",
+	"ARR_UP":   "\U0000F062",
+	"ARR_LEFT": "\U0000F060",
+	"ARR_DOWN": "\U0000F063",
+	"ARR_RIGHT":"\U0000F061",
+}
+
+func ActionDisplayName(action string) string {
+	if d, ok := actionDisplayNames[action]; ok {
+		return d
+	}
+	return action
 }
 
 func GetRemapIndexByKey(key string, model string) int {

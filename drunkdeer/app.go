@@ -288,6 +288,7 @@ func (a *App) applySettings(config *Config, actuations, downstrokes, upstrokes [
 		a.controller.Flush()
 		return
 	} else {
+		// send mode select (own flush + delay so actuation packets don't reset it)
 		a.controller.SendLEDModeSelect(
 			0x00,
 			seq,
@@ -295,8 +296,9 @@ func (a *App) applySettings(config *Config, actuations, downstrokes, upstrokes [
 			a.controller.Light.Brightness,
 			clr,
 		)
+		a.controller.Flush()
+		time.Sleep(10 * time.Millisecond)
 	}
-	a.controller.Flush()
 }
 
 func (a *App) applyRemap(config *Config) {
@@ -306,8 +308,8 @@ func (a *App) applyRemap(config *Config) {
 		entries map[string]string
 	}{
 		{1, config.Remap.Default},
-		{2, config.Remap.Fn1},
-		{3, config.Remap.Fn2},
+		{2, config.Remap.Fn},
+		{3, config.Remap.Menu},
 	}
 
 	for _, l := range layers {
@@ -480,9 +482,47 @@ func (a *App) handleSet() {
 			state.Light.Brightness = v
 			color.HiGreen("Brightness = %d", v)
 
+		case "sequence":
+			if len(values) < 1 {
+				color.HiRed("Usage: drunkdeer set light sequence <0-19>")
+				os.Exit(1)
+			}
+			v, err := strconv.Atoi(values[0])
+			if err != nil || v < 0 || v > 19 {
+				color.HiRed("Invalid sequence (0-19): %s", values[0])
+				os.Exit(1)
+			}
+			state.Light.Sequence = v
+			br := byte(state.Light.Brightness)
+			if br == 0 {
+				br = 9
+			}
+			a.controller.SendLEDModeSelect(0x00, byte(v), byte(state.Light.Speed), br, 0x00)
+			a.controller.Flush()
+			color.HiGreen("Light sequence = %d", v)
+
+		case "speed":
+			if len(values) < 1 {
+				color.HiRed("Usage: drunkdeer set light speed <0-9>")
+				os.Exit(1)
+			}
+			v, err := strconv.Atoi(values[0])
+			if err != nil || v < 0 || v > 9 {
+				color.HiRed("Invalid speed (0-9): %s", values[0])
+				os.Exit(1)
+			}
+			state.Light.Speed = v
+			br := byte(state.Light.Brightness)
+			if br == 0 {
+				br = 9
+			}
+			a.controller.SendLEDModeSelect(0x00, byte(state.Light.Sequence), byte(v), br, 0x00)
+			a.controller.Flush()
+			color.HiGreen("Light speed = %d", v)
+
 		default:
 			color.HiRed("Unknown light field: %s", key)
-			color.White("Valid fields: color, turboColor, colors, brightness")
+			color.White("Valid fields: color, turboColor, colors, brightness, sequence, speed")
 			os.Exit(1)
 		}
 

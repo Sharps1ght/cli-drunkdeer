@@ -1,0 +1,15 @@
+# Replace CODEPOINT with the Nerd Font codepoint (e.g. \U000F075D)
+# One entry per line: ACTION_NAME = CODEPOINT
+# Lines starting with # are ignored
+
+VOL_UP = \uf075d
+VOL_DN = \uf075e
+PREV = \uf04ae
+NEXT = \uf04ad
+PLAY = \uf040a
+STOP = \uf03e4
+MUTE = \uf075f
+ARR_UP = \uf062
+ARR_LEFT = \uf060
+ARR_DOWN = \uf063
+ARR_RIGHT = \uf061

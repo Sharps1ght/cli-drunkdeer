@@ -73,9 +73,9 @@ func GetIndexByKey(key string, model string) int {
 	return GetLayout(model).IndexOf(key)
 }
 
-func GetKeyByIndex(index int) string {
+func GetKeyByIndex(index int, model string) string {
 	if index >= 0 && index < LAYOUT_SIZE {
-		return a75Layout.names[index]
+		return GetLayout(model).names[index]
 	}
 	return ""
 }

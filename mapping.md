@@ -69,12 +69,12 @@
 
 | Action | Default G60 key | Action | Default G60 key |
 |--------|-----------------|--------|-----------------|
-| NUMS | --- | KP0 | --- |
-| KP1 | --- | KP2 | --- |
-| KP3 | --- | KP4 | --- |
-| KP5 | --- | KP6 | --- |
-| KP7 | --- | KP8 | --- |
-| KP9 | --- | KP_DEL | --- |
+| NUMS | --- | NUM0 | --- |
+| NUM1 | --- | NUM2 | --- |
+| NUM3 | --- | NUM4 | --- |
+| NUM5 | --- | NUM6 | --- |
+| NUM7 | --- | NUM8 | --- |
+| NUM9 | --- | KP_DEL | --- |
 | KP_ENTER | --- | KP_PLUS | --- |
 | KP_MINUS | --- | KP_MULT | --- |
 | KP_DIV | --- | | |
@@ -153,9 +153,9 @@ CTRL_L  WIN_L  ALT_L  SPACE  ALT_R  FN1  FN2  CTRL_R
  11: F10       32: MINUS     53: BRKTS_L   74: COLON     95: SLASH     116: FN1
  12: F11       33: PLUS      54: BRKTS_R   75: (empty)   96: (empty)   117: APP
  13: F12       34: BACK      55: SLASH_K29 76: RETURN    97: SHF_R     118: ARR_L
- 14: KP7       35: (empty)   56: (empty)   77: (empty)   98: (empty)   119: ARR_DW
- 15: KP8       36: HOME      57: PGUP      78: (empty)   99: END       120: ARR_R
- 16: KP9       37: (empty)   58: (empty)   79: (empty)  100: (empty)   121: CTRL_R
+ 14: NUM7       35: (empty)   56: (empty)   77: (empty)   98: (empty)   119: ARR_DW
+ 15: NUM8       36: HOME      57: PGUP      78: (empty)   99: END       120: ARR_R
+ 16: NUM9       37: (empty)   58: (empty)   79: (empty)  100: (empty)   121: CTRL_R
  17: (empty)   38: (empty)   59: (empty)   80: (empty)  101: (empty)   122: (empty)
  18: (empty)   39: (empty)   60: (empty)   81: (empty)  102: (empty)   123: (empty)
  19: (empty)   40: (empty)   61: (empty)   82: (empty)  103: (empty)   124: (empty)

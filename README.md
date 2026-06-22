@@ -157,8 +157,8 @@ To remap a key, add ```remap``` section:
             [...]
             },
         "Fn2": {
-            "1": "KP1",
-            "2": "KP2",
+            "1": "NUM1",
+            "2": "NUM2",
             [...]
         }
     }
