@@ -182,6 +182,11 @@ func applyProfileToKeyboard(profile *Profile, model string, dir string) {
 }
 
 func main() {
+	if os.Getenv("DISPLAY") == "" && os.Getenv("WAYLAND_DISPLAY") == "" {
+		fmt.Fprintln(os.Stderr, "No display server found (set DISPLAY for X11 or WAYLAND_DISPLAY for Wayland)")
+		os.Exit(1)
+	}
+
 	a := app.NewWithID("drunkdeer-config")
 
 	if data := kbwidget.MonospaceFontData(); len(data) > 0 {
@@ -459,6 +464,7 @@ func main() {
 	var savedSelAtOpen []int
 	var savedColorsAtOpen map[string]string
 	var pickerPopUp *dismissPopUp
+	var remapPopUp *dismissPopUp
 
 	donePicking := func() {
 		pickingColor = false
@@ -595,18 +601,30 @@ func main() {
 		}()
 	})
 
+	var remapBtn *fynetool.Button
+
 	updateColorBtnState = func() {
 		if pickingColor {
 			return
 		}
-		if remapActive || profile.Light.Sequence != 19 {
+		sel := len(kb.SelectedKeys()) > 0
+		if remapActive {
 			colorBtn.Disable()
-			return
-		}
-		if len(kb.SelectedKeys()) > 0 {
+		} else if profile.Light.Sequence != 19 {
+			colorBtn.Disable()
+		} else if sel {
 			colorBtn.Enable()
 		} else {
 			colorBtn.Disable()
+		}
+		if sel {
+			if remapBtn != nil {
+				remapBtn.Enable()
+			}
+		} else {
+			if remapBtn != nil {
+				remapBtn.Disable()
+			}
 		}
 	}
 	remapActive = false
@@ -866,6 +884,11 @@ func main() {
 		var defActions map[int]string
 		var entries map[string]string
 		switch mode {
+		case "Off":
+			entries = profile.Remap.Default
+			if len(entries) == 0 {
+				return nil, nil
+			}
 		case "Fn":
 			defaults = driver.DefaultFnKeys(model)
 			defActions = driver.DefaultFnActions(model)
@@ -887,23 +910,27 @@ func main() {
 		}
 		for name, action := range entries {
 			idx := driver.GetIndexByKey(name, model)
-			if idx >= 0 {
-				keys[idx] = true
-				names[idx] = driver.ActionDisplayName(action)
+			if idx < 0 {
+				continue
 			}
+			if action == "" {
+				delete(keys, idx)
+				delete(names, idx)
+				continue
+			}
+			keys[idx] = true
+			names[idx] = driver.ActionDisplayName(action)
 		}
 		return keys, names
 	}
 
 	remapRadio := fynetool.NewRadioGroup([]string{"Off", "Fn", "Menu"}, func(s string) {
+		keys, names := buildRemapKeys(s)
+		kb.SetRemapMode(s, keys, names)
+		remapActive = s != "Off"
 		if s == "Off" {
-			kb.SetRemapMode("", nil, nil)
-			remapActive = false
 			sequenceSelect.Enable()
 		} else {
-			keys, names := buildRemapKeys(s)
-			kb.SetRemapMode(s, keys, names)
-			remapActive = true
 			sequenceSelect.Disable()
 		}
 		updateColorBtnState()
@@ -911,6 +938,106 @@ func main() {
 	remapRadio.Horizontal = true
 	remapRadio.Required = true
 	remapRadio.SetSelected("Off")
+
+	remapBtn = fynetool.NewButton("Remap...", func() {
+		savedSelAtOpen = kb.SelectedKeys()
+		if len(savedSelAtOpen) == 0 {
+			return
+		}
+
+		kb.ClearSelection()
+
+		finishRemap := func() {
+			mode := remapRadio.Selected
+			keys, names := buildRemapKeys(mode)
+			kb.SetRemapMode(mode, keys, names)
+			if remapPopUp != nil {
+				remapPopUp.Hide()
+				remapPopUp = nil
+			}
+		}
+		getEntries := func() map[string]string {
+			mode := remapRadio.Selected
+			switch mode {
+			case "Off":
+				if profile.Remap.Default == nil {
+					profile.Remap.Default = make(map[string]string)
+				}
+				return profile.Remap.Default
+			case "Fn":
+				if profile.Remap.Fn == nil {
+					profile.Remap.Fn = make(map[string]string)
+				}
+				return profile.Remap.Fn
+			case "Menu":
+				if profile.Remap.Menu == nil {
+					profile.Remap.Menu = make(map[string]string)
+				}
+				return profile.Remap.Menu
+			}
+			return nil
+		}
+
+		remapPicker := kbwidget.NewActionPicker(
+			func(action string) {
+				entries := getEntries()
+				for _, val := range savedSelAtOpen {
+					name := driver.GetKeyByIndex(val, model)
+					if name == "" {
+						continue
+					}
+					entries[name] = action
+				}
+				finishRemap()
+			},
+			func() {
+				entries := getEntries()
+				for _, val := range savedSelAtOpen {
+					name := driver.GetKeyByIndex(val, model)
+					if name == "" {
+						continue
+					}
+					delete(entries, name)
+				}
+				finishRemap()
+			},
+			func() {
+				entries := getEntries()
+				for _, val := range savedSelAtOpen {
+					name := driver.GetKeyByIndex(val, model)
+					if name == "" {
+						continue
+					}
+					entries[name] = ""
+				}
+				finishRemap()
+			},
+			func() {
+				if remapPopUp != nil {
+					remapPopUp.Hide()
+					remapPopUp = nil
+				}
+			},
+		)
+		remapPicker.Destroy = func() {}
+
+		remapPopUp = &dismissPopUp{
+			PopUp:     fynetool.PopUp{Content: remapPicker.Content, Canvas: w.Canvas()},
+			onDismiss: func() {},
+		}
+		remapPopUp.ExtendBaseWidget(remapPopUp)
+
+		canvasSize := w.Canvas().Size()
+		popupW := canvasSize.Width * 0.75
+		popupH := canvasSize.Height * 0.75
+		popupSize := fyne.NewSize(popupW, popupH)
+		remapPicker.SetContentMinSize(popupSize)
+		remapPopUp.ShowAtPosition(fyne.NewPos(
+			(canvasSize.Width-popupSize.Width)/2,
+			(canvasSize.Height-popupSize.Height)/2,
+		))
+	})
+	remapBtn.Disable()
 
 	setMismatchUI = func(mismatch bool) {
 		modelMismatchLabel.Hidden = !mismatch
@@ -931,6 +1058,7 @@ func main() {
 			brValue.Disable()
 			spSlider.Disable()
 			spValue.Disable()
+			remapBtn.Disable()
 		} else {
 			profileSelect.Enable()
 			apply.Enable()
@@ -954,7 +1082,7 @@ func main() {
 		setMismatchUI(true)
 	}
 	profileSelect.SetSelected(currentProfile)
-	topBar := container.NewBorder(nil, nil, container.NewHBox(profileSelect, deleteBtn, rtCheck, turboCheck, turboHexWrapped, remapRadio), modelMismatchLabel)
+	topBar := container.NewBorder(nil, nil, container.NewHBox(profileSelect, deleteBtn, rtCheck, turboCheck, turboHexWrapped, remapRadio, remapBtn), modelMismatchLabel)
 
 	kbCentered := container.NewCenter(
 		container.NewVBox(

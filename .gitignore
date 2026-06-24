@@ -24,3 +24,7 @@ go.work.sum
 
 # env file
 .env
+
+# Build artifacts (Linux ELF binaries)
+drunkdeer-cli
+drunkdeer-gui

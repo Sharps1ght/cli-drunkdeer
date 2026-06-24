@@ -304,23 +304,32 @@ func (a *App) applySettings(config *Config, actuations, downstrokes, upstrokes [
 func (a *App) applyRemap(config *Config) {
 	model := a.controller.GetIdentity().KeyboardModel
 	layers := []struct {
-		layer byte
-		entries map[string]string
+		layer    byte
+		entries  map[string]string
+		defaults map[int]string
 	}{
-		{1, config.Remap.Default},
-		{2, config.Remap.Fn},
-		{3, config.Remap.Menu},
+		{1, config.Remap.Default, nil},
+		{2, config.Remap.Fn, driver.DefaultFnActions(model)},
+		{3, config.Remap.Menu, driver.DefaultMenuActions(model)},
 	}
 
 	for _, l := range layers {
-		if len(l.entries) == 0 {
-			continue
-		}
 		keys := make(map[int]*driver.RemapKey)
+
+		for idx, defAction := range l.defaults {
+			if rk, ok := driver.GetRemapAction(defAction); ok {
+				keys[idx] = &rk
+			}
+		}
+
 		for physKey, action := range l.entries {
 			idx := driver.GetRemapIndexByKey(physKey, model)
 			if idx == -1 {
 				DEBUG("Remap: unknown physical key %q (layer %d)", physKey, l.layer)
+				continue
+			}
+			if action == "" {
+				delete(keys, idx)
 				continue
 			}
 			rk, ok := driver.GetRemapAction(action)
@@ -331,6 +340,7 @@ func (a *App) applyRemap(config *Config) {
 			keys[idx] = &rk
 			DEBUG("Remap: %s(%d) -> %s (cmd=%02x code=%02x type=%d)", physKey, idx, action, rk.KeyCmd, rk.KeyCode, rk.KeyType)
 		}
+
 		if len(keys) > 0 {
 			a.controller.SendRemapData(keys, l.layer)
 		}
