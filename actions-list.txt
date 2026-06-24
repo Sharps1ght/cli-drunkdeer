@@ -3,21 +3,21 @@
 # Default mapping shows which Fn/Menu+key triggers this action on each model
 
 ## Lighting / Special Functions
-Light On/Off     LIGHT_SW
+Light On/Off     LIGHT_SW | Light
 Color Cycle      LIGHT_CYCLE
 Color            LIGHT_COLOR
 Pause            LIGHT_PAUSE
-Prev Mode        LIGHT_PREV        → Menu+ARR_L (A75)
-Next Mode        LIGHT_NEXT        → Menu+ARR_R (A75)
-Brightness +     LIGHT_BR_INC      → Menu+ARR_UP (A75) / (no physical key mapped on G75)
-Brightness -     LIGHT_BR_DEC      → Menu+ARR_DW (G75)
-Speed +          LIGHT_SP_INC
-Speed -          LIGHT_SP_DEC
+Prev Mode        LIGHT_PREV        → Menu+ARR_L (A75) | Light Next
+Next Mode        LIGHT_NEXT        → Menu+ARR_R (A75) | Light Prev
+Brightness +     LIGHT_BR_INC      → Menu+ARR_UP (A75) | Light +
+Brightness -     LIGHT_BR_DEC      → Menu+ARR_DW (G75) | Light -
+Speed +          LIGHT_SP_INC | Speed +
+Speed -          LIGHT_SP_DEC | Speed -
 Light Ctrl       LIGHT_CTRL
 Color Ctrl       COLOR_CTRL
 Speed Ctrl       SPEED_CTRL
 Bright Ctrl      BR_CTRL
-Win Lock         WIN_LOCK
+Win Lock         WIN_LOCK | Win Lock
 RDT              RDT
 LW               LW
 RT               RT
@@ -96,13 +96,13 @@ F11              F11           → Fn+MINUS (G60, G65)
 F12              F12           → Fn+PLUS (G60, G65)
 
 ## Arrow Keys
-Up               ARR_UP        → Fn+W (G60)
+Up               ARR_UP        → Fn+W (G60)  | Arrow Up
                  ARR_DOWN
-Down             ARR_DW        → Fn+S (G60)
+Down             ARR_DW        → Fn+S (G60) | Arrow Down
 Left             ARR_LEFT
-                 ARR_L         → Fn+A (G60)
+                 ARR_L         → Fn+A (G60) | Arrow Left
 Right            ARR_RIGHT
-                 ARR_R         → Fn+D (G60)
+                 ARR_R         → Fn+D (G60) | Arrow Down
 
 ## Numpad
 Num Lock         NUMS

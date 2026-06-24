@@ -480,6 +480,8 @@ func (a *App) handleSet() {
 				os.Exit(1)
 			}
 			state.Light.Brightness = v
+			a.controller.SendLEDModeSelect(0x00, byte(state.Light.Sequence), byte(state.Light.Speed), byte(v), 0x00)
+			a.controller.Flush()
 			color.HiGreen("Brightness = %d", v)
 
 		case "sequence":

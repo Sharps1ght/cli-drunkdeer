@@ -34,27 +34,38 @@ func MonospaceFontData() []byte {
 	return monoFontData
 }
 
-func loadMonospaceFont() font.Face {
+func initFontFaces() map[int]font.Face {
+	faces := make(map[int]font.Face)
 	data := MonospaceFontData()
 	if len(data) == 0 {
 		log.Println("No monospace TTF found, falling back to bitmap font")
-		return basicfont.Face7x13
+		for size := 12; size <= 24; size++ {
+			faces[size] = basicfont.Face7x13
+		}
+		return faces
 	}
 	fnt, err := opentype.Parse(data)
 	if err != nil {
 		log.Printf("Failed to parse font: %v", err)
-		return basicfont.Face7x13
+		for size := 12; size <= 24; size++ {
+			faces[size] = basicfont.Face7x13
+		}
+		return faces
 	}
-	face, err := opentype.NewFace(fnt, &opentype.FaceOptions{
-		Size:    15,
-		DPI:     72,
-		Hinting: font.HintingFull,
-	})
-	if err != nil {
-		log.Printf("Failed to create face: %v", err)
-		return basicfont.Face7x13
+	for size := 12; size <= 24; size++ {
+		face, err := opentype.NewFace(fnt, &opentype.FaceOptions{
+			Size:    float64(size),
+			DPI:     72,
+			Hinting: font.HintingFull,
+		})
+		if err != nil {
+			log.Printf("Failed to create face at size %d: %v", size, err)
+			faces[size] = basicfont.Face7x13
+		} else {
+			faces[size] = face
+		}
 	}
-	return face
+	return faces
 }
 
 func findSystemMonospace() string {
@@ -104,7 +115,7 @@ type KeyboardWidget struct {
 	dragging           bool
 	dragStartSelected  map[int]bool
 	raster             *canvas.Raster
-	keyFace            font.Face
+	fontFaces          map[int]font.Face
 	defaultKeyColor    color.Color
 	customColors       map[int]color.Color
 	onSelectionChanged func()
@@ -119,7 +130,7 @@ func NewKeyboardWidget(model string) *KeyboardWidget {
 		model:          model,
 		selected:       make(map[int]bool),
 		hoveredKey:     -1,
-		keyFace:        loadMonospaceFont(),
+		fontFaces:      initFontFaces(),
 		defaultKeyColor: color.RGBA{0x2d, 0x2d, 0x2d, 0xff},
 		customColors:   make(map[int]color.Color),
 	}
@@ -311,6 +322,49 @@ func (k *KeyboardWidget) CreateRenderer() fyne.WidgetRenderer {
 	return &keyboardRenderer{raster: r, widget: k}
 }
 
+func optimalSizeAndWrap(label string, kw, kh int, faces map[int]font.Face) (int, string) {
+	lines := strings.Split(label, "\n")
+	isMulti := len(lines) > 1
+
+	for size := 24; size >= 12; size-- {
+		face := faces[size]
+		m := face.Metrics()
+		lineH := m.Height.Ceil()
+		totalH := lineH * len(lines)
+
+		if totalH > kh {
+			continue
+		}
+
+		maxAdv := 0
+		for _, line := range lines {
+			adv := font.MeasureString(face, line).Ceil()
+			if adv > maxAdv {
+				maxAdv = adv
+			}
+		}
+
+		if maxAdv <= kw {
+			return size, label
+		}
+
+		if !isMulti && strings.Contains(label, " ") && lineH*2 <= kh {
+			parts := strings.SplitN(label, " ", 2)
+			w1 := font.MeasureString(face, parts[0]).Ceil()
+			w2 := font.MeasureString(face, parts[1]).Ceil()
+			if w1 <= kw && w2 <= kw {
+				return size, parts[0] + "\n" + parts[1]
+			}
+		}
+	}
+
+	if !strings.Contains(label, "\n") && strings.Contains(label, " ") {
+		parts := strings.SplitN(label, " ", 2)
+		return 12, parts[0] + "\n" + parts[1]
+	}
+	return 12, label
+}
+
 func (k *KeyboardWidget) draw(w, h int) image.Image {
 	ld := k.layout
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
@@ -344,10 +398,10 @@ func (k *KeyboardWidget) draw(w, h int) image.Image {
 				} else {
 					keyCol = k.defaultKeyColor
 				}
-				textCol = color.RGBA{0xcc, 0xcc, 0xcc, 0xff}
+				textCol = color.RGBA{0xff, 0xff, 0xff, 0xff}
 			}
 
-			drawRoundedRect(img, x, y, kw, kh, 4, keyCol)
+			drawRoundedRect(img, x, y, kw, kh, 5, keyCol)
 
 			label := key.Name
 			if k.remapMode != "" {
@@ -357,7 +411,8 @@ func (k *KeyboardWidget) draw(w, h int) image.Image {
 					label = "-"
 				}
 			}
-			drawCenteredText(img, label, x, y, kw, kh, textCol, k.keyFace)
+			optSize, displayLabel := optimalSizeAndWrap(label, kw, kh, k.fontFaces)
+			drawCenteredText(img, displayLabel, x, y, kw, kh, textCol, k.fontFaces[optSize])
 
 			x += kw + int(ld.Gap)
 		}
@@ -406,25 +461,58 @@ func drawRoundedRect(img *image.RGBA, x, y, w, h, r int, col color.Color) {
 }
 
 func drawCenteredText(img *image.RGBA, text string, x, y, w, h int, col color.Color, face font.Face) {
+	lines := strings.Split(text, "\n")
+	if len(lines) == 0 {
+		return
+	}
 	m := face.Metrics()
-	adv := font.MeasureString(face, text).Ceil()
-	tx := x + (w-adv)/2
-	ty := y + (h-m.Height.Ceil())/2 + m.Ascent.Ceil()
+	lineH := m.Height.Ceil()
+	totalH := lineH * len(lines)
+	ty := y + (h-totalH)/2 + m.Ascent.Ceil()
 
-	px := fixed.I(tx)
-	py := fixed.I(ty)
 	faceColor := color.RGBA{0xff, 0xff, 0xff, 0xff}
 	if c, ok := col.(color.RGBA); ok {
 		faceColor = c
 	}
 
-	d := font.Drawer{
-		Dst:  img,
-		Src:  image.NewUniform(faceColor),
-		Face: face,
-		Dot:  fixed.Point26_6{X: px, Y: py},
+	outlineColor := image.NewUniform(color.RGBA{0, 0, 0, 0xff})
+	stroke := 1
+	offsets := [][2]int{}
+	for dy := -stroke; dy <= stroke; dy++ {
+		for dx := -stroke; dx <= stroke; dx++ {
+			if dx == 0 && dy == 0 {
+				continue
+			}
+			offsets = append(offsets, [2]int{dx, dy})
+		}
 	}
-	d.DrawString(text)
+
+	for _, line := range lines {
+		adv := font.MeasureString(face, line).Ceil()
+		tx := x + (w-adv)/2
+
+		for _, off := range offsets {
+			px := fixed.I(tx + off[0])
+			py := fixed.I(ty + off[1])
+			d := font.Drawer{
+				Dst:  img,
+				Src:  outlineColor,
+				Face: face,
+				Dot:  fixed.Point26_6{X: px, Y: py},
+			}
+			d.DrawString(line)
+		}
+		px := fixed.I(tx)
+		py := fixed.I(ty)
+		d := font.Drawer{
+			Dst:  img,
+			Src:  image.NewUniform(faceColor),
+			Face: face,
+			Dot:  fixed.Point26_6{X: px, Y: py},
+		}
+		d.DrawString(line)
+		ty += lineH
+	}
 }
 
 type keyboardRenderer struct {

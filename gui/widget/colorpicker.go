@@ -115,44 +115,44 @@ func NewColorPicker(
 	var curSat = s
 	var curVal = v
 
-	var (
-		cachedHue    float64
-		cachedGradient *image.RGBA
-	)
-	makeSVGradient := func(w, h int) *image.RGBA {
-		if cachedGradient != nil && cachedGradient.Bounds().Dx() == w && cachedGradient.Bounds().Dy() == h {
-			return cachedGradient
-		}
+	satRaster := canvas.NewRaster(func(w, h int) image.Image {
 		img := image.NewRGBA(image.Rect(0, 0, w, h))
-		for y := 0; y < h; y++ {
-			sv := 1.0 - float64(y)/float64(h-1)
-			for x := 0; x < w; x++ {
-				ss := float64(x) / float64(w-1)
-				cr, cg, cb := hsvToRGB(curHue, ss, sv)
-				img.Set(x, y, color.RGBA{uint8(cr * 255), uint8(cg * 255), uint8(cb * 255), 0xff})
+		for x := 0; x < w; x++ {
+			ss := float64(x) / float64(w-1)
+			cr, cg, cb := hsvToRGB(curHue, ss, curVal)
+			col := color.RGBA{uint8(cr * 255), uint8(cg * 255), uint8(cb * 255), 0xff}
+			for y := 0; y < h; y++ {
+				img.Set(x, y, col)
 			}
 		}
-		cachedGradient = img
-		return img
-	}
-
-	svRaster := canvas.NewRaster(func(w, h int) image.Image {
-		if cachedHue != curHue || cachedGradient == nil || cachedGradient.Bounds().Dx() != w || cachedGradient.Bounds().Dy() != h {
-			cachedHue = curHue
-			makeSVGradient(w, h)
-		}
-		img := image.NewRGBA(image.Rect(0, 0, w, h))
-		copy(img.Pix, cachedGradient.Pix)
 		cx := int(curSat * float64(w-1))
-		cy := int((1.0 - curVal) * float64(h-1))
-		for dx := -4; dx <= 4; dx++ {
-			for dy := -4; dy <= 4; dy++ {
-				if dx*dx+dy*dy > 4 {
-					continue
+		for dx := -2; dx <= 2; dx++ {
+			for y := 0; y < h; y++ {
+				px := cx + dx
+				if px >= 0 && px < w {
+					img.Set(px, y, color.RGBA{0xff, 0xff, 0xff, 0xff})
 				}
-				px, py := cx+dx, cy+dy
-				if px >= 0 && px < w && py >= 0 && py < h {
-					img.Set(px, py, color.RGBA{0xff, 0xff, 0xff, 0xff})
+			}
+		}
+		return img
+	})
+
+	valRaster := canvas.NewRaster(func(w, h int) image.Image {
+		img := image.NewRGBA(image.Rect(0, 0, w, h))
+		for x := 0; x < w; x++ {
+			sv := float64(x) / float64(w-1)
+			cr, cg, cb := hsvToRGB(curHue, curSat, sv)
+			col := color.RGBA{uint8(cr * 255), uint8(cg * 255), uint8(cb * 255), 0xff}
+			for y := 0; y < h; y++ {
+				img.Set(x, y, col)
+			}
+		}
+		cx := int(curVal * float64(w-1))
+		for dx := -2; dx <= 2; dx++ {
+			for y := 0; y < h; y++ {
+				px := cx + dx
+				if px >= 0 && px < w {
+					img.Set(px, y, color.RGBA{0xff, 0xff, 0xff, 0xff})
 				}
 			}
 		}
@@ -180,22 +180,24 @@ func NewColorPicker(
 		return img
 	})
 
-	oldColor := canvas.NewRectangle(hexToColor(initialHex))
-	oldColor.SetMinSize(fyne.NewSize(64, 32))
-	newColor := canvas.NewRectangle(hexToColor(curHex))
-	newColor.SetMinSize(fyne.NewSize(64, 32))
+	refColor := canvas.NewRectangle(hexToColor(initialHex))
+	refColor.SetMinSize(fyne.NewSize(156, 38))
 
 	updatePreview := func() {
-		newColor.FillColor = hexToColor(curHex)
-		canvas.Refresh(newColor)
 	}
 
 	var update func()
 	var updating bool
 
-	setSV := func(sv, vl float64) {
-		curSat = math.Max(0, math.Min(1, sv))
-		curVal = math.Max(0, math.Min(1, vl))
+	setSat := func(s float64) {
+		curSat = math.Max(0, math.Min(1, s))
+		cr, cg, cb := hsvToRGB(curHue, curSat, curVal)
+		curHex = fmt.Sprintf("#%02X%02X%02X", uint8(cr*255), uint8(cg*255), uint8(cb*255))
+		update()
+	}
+
+	setVal := func(v float64) {
+		curVal = math.Max(0, math.Min(1, v))
 		cr, cg, cb := hsvToRGB(curHue, curSat, curVal)
 		curHex = fmt.Sprintf("#%02X%02X%02X", uint8(cr*255), uint8(cg*255), uint8(cb*255))
 		update()
@@ -208,18 +210,29 @@ func NewColorPicker(
 		update()
 	}
 
-	svArea := &hBarTappable{
-		raster:  svRaster,
-		minSize: fyne.NewSize(130, 32),
+	barSize := fyne.NewSize(156, 38)
+
+	satArea := &hBarTappable{
+		raster:  satRaster,
+		minSize: barSize,
 		onDrag: func(x, y float64) {
-			setSV(x, 1-y)
+			setSat(x)
 		},
 	}
-	svArea.ExtendBaseWidget(svArea)
+	satArea.ExtendBaseWidget(satArea)
+
+	valArea := &hBarTappable{
+		raster:  valRaster,
+		minSize: barSize,
+		onDrag: func(x, y float64) {
+			setVal(x)
+		},
+	}
+	valArea.ExtendBaseWidget(valArea)
 
 	hueArea := &hBarTappable{
 		raster:  hueRaster,
-		minSize: fyne.NewSize(24, 32),
+		minSize: barSize,
 		onDrag: func(x, y float64) {
 			setHue(x * 360)
 		},
@@ -229,7 +242,7 @@ func NewColorPicker(
 	hexEntry := fynetool.NewEntry()
 	hexEntry.SetText(initialHex)
 	hexEntry.PlaceHolder = "#FF00AA"
-	hexWrapped := &minSizeWrap{inner: hexEntry, minsize: fyne.NewSize(90, 32)}
+	hexWrapped := &minSizeWrap{inner: hexEntry, minsize: fyne.NewSize(108, 38)}
 	hexWrapped.ExtendBaseWidget(hexWrapped)
 	hexEntry.OnChanged = func(s string) {
 		if updating {
@@ -239,7 +252,8 @@ func NewColorPicker(
 		if len(s) == 6 {
 			curHex = "#" + strings.ToUpper(s)
 			curHue, curSat, curVal = hexToHSV(curHex)
-			svRaster.Refresh()
+			satRaster.Refresh()
+			valRaster.Refresh()
 			hueRaster.Refresh()
 			updatePreview()
 			if onPreview != nil {
@@ -249,7 +263,8 @@ func NewColorPicker(
 	}
 
 	update = func() {
-		svRaster.Refresh()
+		satRaster.Refresh()
+		valRaster.Refresh()
 		hueRaster.Refresh()
 		updatePreview()
 		updating = true
@@ -270,21 +285,25 @@ func NewColorPicker(
 			onSelect(curHex)
 		}
 	})
+	cancelBtn := fynetool.NewButton("Cancel", func() {
+		if result != nil && result.Destroy != nil {
+			result.Destroy()
+		}
+		if onCancel != nil {
+			onCancel()
+		}
+	})
 
-	rightGroup := container.NewHBox(
-		container.NewHBox(oldColor, newColor),
+	rightGroup := container.NewVBox(
+		refColor,
 		hexWrapped,
-		selectBtn,
+		container.NewHBox(selectBtn, cancelBtn),
 		layout.NewSpacer(),
 	)
 
-	barGrid := container.New(layout.NewGridLayout(2), svArea, hueArea)
+	bars := container.NewVBox(hueArea, satArea, valArea, layout.NewSpacer())
 
-	content := container.NewBorder(nil, nil,
-		nil,
-		rightGroup,
-		barGrid,
-	)
+	content := container.NewHBox(bars, rightGroup)
 
 	result = &ColorPicker{
 		Content: content,

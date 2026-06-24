@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"image/color"
 	"log"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -316,35 +318,174 @@ func main() {
 		rtSlider,
 	)
 
-	rightPanel := container.NewHBox(
-		actuationBox,
-		rtBox,
+	var brUpdating bool
+	var brTimer *time.Timer
+
+	brLabel := fynetool.NewLabel("Brightness\nLevel")
+	brLabel.Alignment = fyne.TextAlignCenter
+
+	brSlider := fynetool.NewSlider(1, 10)
+	brSlider.Step = 1
+	brSlider.Value = float64(profile.Light.Brightness + 1)
+	brSlider.Orientation = fynetool.Vertical
+
+	brValue := fynetool.NewEntry()
+	brValue.SetText(strconv.Itoa(profile.Light.Brightness + 1))
+
+	brSlider.OnChanged = func(v float64) {
+		if brUpdating {
+			return
+		}
+		brUpdating = true
+		iv := int(math.Round(v))
+		brValue.SetText(strconv.Itoa(iv))
+		profile.Light.Brightness = iv - 1
+		brUpdating = false
+		if brTimer != nil {
+			brTimer.Stop()
+		}
+		brTimer = time.AfterFunc(500*time.Millisecond, func() {
+			cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "brightness", strconv.Itoa(iv-1))
+			if out, err := cmd.CombinedOutput(); err != nil {
+				log.Printf("Error setting light brightness: %v\n%s", err, out)
+			}
+		})
+	}
+
+	brValue.OnChanged = func(s string) {
+		if brUpdating {
+			return
+		}
+		s = strings.TrimSpace(s)
+		v, err := strconv.Atoi(s)
+		if err != nil || v < 1 || v > 10 {
+			return
+		}
+		brUpdating = true
+		brSlider.Value = float64(v)
+		brSlider.Refresh()
+		profile.Light.Brightness = v - 1
+		brUpdating = false
+		if brTimer != nil {
+			brTimer.Stop()
+		}
+		brTimer = time.AfterFunc(500*time.Millisecond, func() {
+			cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "brightness", strconv.Itoa(v-1))
+			if out, err := cmd.CombinedOutput(); err != nil {
+				log.Printf("Error setting light brightness: %v\n%s", err, out)
+			}
+		})
+	}
+
+	brBox := container.NewBorder(
+		brLabel,
+		brValue,
+		nil, nil,
+		brSlider,
 	)
+
+	var spUpdating bool
+	var spTimer *time.Timer
+
+	spLabel := fynetool.NewLabel("Animation\nSpeed")
+	spLabel.Alignment = fyne.TextAlignCenter
+
+	spSlider := fynetool.NewSlider(1, 10)
+	spSlider.Step = 1
+	spSlider.Value = float64(profile.Light.Speed + 1)
+	spSlider.Orientation = fynetool.Vertical
+
+	spValue := fynetool.NewEntry()
+	spValue.SetText(strconv.Itoa(profile.Light.Speed + 1))
+
+	spSlider.OnChanged = func(v float64) {
+		if spUpdating {
+			return
+		}
+		spUpdating = true
+		iv := int(math.Round(v))
+		spValue.SetText(strconv.Itoa(iv))
+		profile.Light.Speed = iv - 1
+		spUpdating = false
+		if spTimer != nil {
+			spTimer.Stop()
+		}
+		spTimer = time.AfterFunc(500*time.Millisecond, func() {
+			cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "speed", strconv.Itoa(iv-1))
+			if out, err := cmd.CombinedOutput(); err != nil {
+				log.Printf("Error setting light speed: %v\n%s", err, out)
+			}
+		})
+	}
+
+	spValue.OnChanged = func(s string) {
+		if spUpdating {
+			return
+		}
+		s = strings.TrimSpace(s)
+		v, err := strconv.Atoi(s)
+		if err != nil || v < 1 || v > 10 {
+			return
+		}
+		spUpdating = true
+		spSlider.Value = float64(v)
+		spSlider.Refresh()
+		profile.Light.Speed = v - 1
+		spUpdating = false
+		if spTimer != nil {
+			spTimer.Stop()
+		}
+		spTimer = time.AfterFunc(500*time.Millisecond, func() {
+			cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "speed", strconv.Itoa(v-1))
+			if out, err := cmd.CombinedOutput(); err != nil {
+				log.Printf("Error setting light speed: %v\n%s", err, out)
+			}
+		})
+	}
+
+	spBox := container.NewBorder(
+		spLabel,
+		spValue,
+		nil, nil,
+		spSlider,
+	)
+
+	rightPanel := container.NewHBox(actuationBox, rtBox)
+	leftPanel := container.NewHBox(brBox, spBox)
 
 	var pickingColor bool
 	var colorBtn *fynetool.Button
 	var currentPicker *kbwidget.ColorPicker
 	var savedSelAtOpen []int
 	var savedColorsAtOpen map[string]string
-	pickerContainer := container.New(layout.NewMaxLayout())
+	var pickerPopUp *dismissPopUp
 
 	donePicking := func() {
 		pickingColor = false
-		pickerContainer.RemoveAll()
 		currentPicker = nil
 	}
 
 	cancelColor := func() {
-		donePicking()
+		if pickingColor {
+			donePicking()
+		}
 		profile.Light.Colors = savedColorsAtOpen
 		applyKeyboardColors(kb, profile, model)
 		kb.SelectKeys(savedSelAtOpen)
 		colorBtn.Enable()
+		if pickerPopUp != nil {
+			pickerPopUp.Hide()
+			pickerPopUp = nil
+		}
 	}
 
 	colorBtn = fynetool.NewButton("Color...", func() {
 		if pickingColor {
-			cancelColor()
+			if pickerPopUp != nil {
+				pickerPopUp.Hide()
+				pickerPopUp = nil
+			}
+			donePicking()
 			return
 		}
 
@@ -383,15 +524,27 @@ func main() {
 				}
 			},
 			func(hex string) {
-				donePicking()
+				pickingColor = false
 				kb.SelectKeys(savedSelAtOpen)
 				colorBtn.Enable()
+				if pickerPopUp != nil {
+					pickerPopUp.Hide()
+					pickerPopUp = nil
+				}
 			},
 			cancelColor,
 		)
-		currentPicker.Destroy = donePicking
-		pickerContainer.RemoveAll()
-		pickerContainer.Add(currentPicker.Content)
+		currentPicker.Destroy = func() {
+			pickingColor = false
+		}
+
+		pickerPopUp = &dismissPopUp{
+			PopUp:     fynetool.PopUp{Content: currentPicker.Content, Canvas: w.Canvas()},
+			onDismiss: cancelColor,
+		}
+		pickerPopUp.ExtendBaseWidget(pickerPopUp)
+		pickerPopUp.ShowAtRelativePosition(
+			fyne.NewPos(colorBtn.Size().Width, 0), colorBtn)
 	})
 	colorBtn.Disable()
 
@@ -443,7 +596,10 @@ func main() {
 	})
 
 	updateColorBtnState = func() {
-		if pickingColor || remapActive || profile.Light.Sequence != 19 {
+		if pickingColor {
+			return
+		}
+		if remapActive || profile.Light.Sequence != 19 {
 			colorBtn.Disable()
 			return
 		}
@@ -481,7 +637,6 @@ func main() {
 	bottomBar := container.NewBorder(nil, nil,
 		container.NewHBox(sequenceSelect, colorBtn),
 		container.NewHBox(apply, saveBtn, closeBtn),
-		pickerContainer,
 	)
 
 	profileOptions := append(profileNames, "New...")
@@ -548,8 +703,21 @@ func main() {
 					rtSlider.Value = float64(p.RapidTrigger.DefaultDownstroke)
 					rtSlider.Refresh()
 					rtValue.SetText(fmt.Sprintf("%.1fmm", p.RapidTrigger.DefaultDownstroke))
+					brSlider.Value = float64(p.Light.Brightness + 1)
+					brSlider.Refresh()
+					brValue.SetText(strconv.Itoa(p.Light.Brightness + 1))
+					spSlider.Value = float64(p.Light.Speed + 1)
+					spSlider.Refresh()
+					spValue.SetText(strconv.Itoa(p.Light.Speed + 1))
 					if rtCheck != nil {
 						rtCheck.SetChecked(p.RapidTrigger.Enabled)
+						if p.RapidTrigger.Enabled {
+							rtSlider.Enable()
+							rtValue.Enable()
+						} else {
+							rtSlider.Disable()
+							rtValue.Disable()
+						}
 					}
 					if turboCheck != nil {
 						turboCheck.SetChecked(p.Turbo)
@@ -596,8 +764,21 @@ func main() {
 		rtSlider.Value = float64(profile.RapidTrigger.DefaultDownstroke)
 		rtSlider.Refresh()
 		rtValue.SetText(fmt.Sprintf("%.1fmm", profile.RapidTrigger.DefaultDownstroke))
+		brSlider.Value = float64(profile.Light.Brightness + 1)
+		brSlider.Refresh()
+		brValue.SetText(strconv.Itoa(profile.Light.Brightness + 1))
+		spSlider.Value = float64(profile.Light.Speed + 1)
+		spSlider.Refresh()
+		spValue.SetText(strconv.Itoa(profile.Light.Speed + 1))
 		if rtCheck != nil {
 			rtCheck.SetChecked(profile.RapidTrigger.Enabled)
+			if profile.RapidTrigger.Enabled {
+				rtSlider.Enable()
+				rtValue.Enable()
+			} else {
+				rtSlider.Disable()
+				rtValue.Disable()
+			}
 		}
 		if turboCheck != nil {
 			turboCheck.SetChecked(profile.Turbo)
@@ -631,8 +812,19 @@ func main() {
 
 	rtCheck = fynetool.NewCheck("Rapid Trigger", func(checked bool) {
 		profile.RapidTrigger.Enabled = checked
+		if checked {
+			rtSlider.Enable()
+			rtValue.Enable()
+		} else {
+			rtSlider.Disable()
+			rtValue.Disable()
+		}
 	})
 	rtCheck.SetChecked(profile.RapidTrigger.Enabled)
+	if !profile.RapidTrigger.Enabled {
+		rtSlider.Disable()
+		rtValue.Disable()
+	}
 
 	if profile.Light.TurboColor != "" {
 		turboHexEntry.SetText(profile.Light.TurboColor)
@@ -652,7 +844,7 @@ func main() {
 	} else {
 		turboHexEntry.Disable()
 	}
-	turboHexWrapped := &minSizeWrap{inner: turboHexEntry, minsize: fyne.NewSize(90, 32)}
+	turboHexWrapped := &minSizeWrap{inner: turboHexEntry, minsize: fyne.NewSize(108, 38)}
 	turboHexWrapped.ExtendBaseWidget(turboHexWrapped)
 
 	turboCheck = fynetool.NewCheck("Turbo", func(checked bool) {
@@ -707,10 +899,12 @@ func main() {
 		if s == "Off" {
 			kb.SetRemapMode("", nil, nil)
 			remapActive = false
+			sequenceSelect.Enable()
 		} else {
 			keys, names := buildRemapKeys(s)
 			kb.SetRemapMode(s, keys, names)
 			remapActive = true
+			sequenceSelect.Disable()
 		}
 		updateColorBtnState()
 	})
@@ -733,6 +927,10 @@ func main() {
 			rtCheck.Disable()
 			turboCheck.Disable()
 			turboHexEntry.Disable()
+			brSlider.Disable()
+			brValue.Disable()
+			spSlider.Disable()
+			spValue.Disable()
 		} else {
 			profileSelect.Enable()
 			apply.Enable()
@@ -746,6 +944,10 @@ func main() {
 			rtCheck.Enable()
 			turboCheck.Enable()
 			turboHexEntry.Enable()
+			brSlider.Enable()
+			brValue.Enable()
+			spSlider.Enable()
+			spValue.Enable()
 		}
 	}
 	if initialModel != "" && initialModel != model {
@@ -762,15 +964,15 @@ func main() {
 		),
 	)
 
-	content := container.NewBorder(topBar, bottomBar, nil, rightPanel, kbCentered)
+	content := container.NewBorder(topBar, bottomBar, leftPanel, rightPanel, kbCentered)
 	w.SetContent(content)
 
-	pad := float32(80)
+	pad := float32(96)
 	butH := bottomBar.MinSize().Height
-	panelW := float32(300)
+	panelW := float32(360)
 	w.Resize(fyne.NewSize(
 		kb.MinSize().Width+pad+panelW,
-		kb.MinSize().Height+pad+butH+float32(50),
+		kb.MinSize().Height+pad+butH+float32(60),
 	))
 	w.CenterOnScreen()
 	w.ShowAndRun()
@@ -803,6 +1005,28 @@ var monoFont fyne.Resource
 
 type monoTheme struct{}
 
+type dismissPopUp struct {
+	fynetool.PopUp
+	onDismiss func()
+}
+
+func (p *dismissPopUp) Tapped(e *fyne.PointEvent) {
+	cPos := p.Content.Position()
+	cSize := p.Content.Size()
+	if e.Position.X < cPos.X || e.Position.X > cPos.X+cSize.Width ||
+		e.Position.Y < cPos.Y || e.Position.Y > cPos.Y+cSize.Height {
+		if p.onDismiss != nil {
+			p.onDismiss()
+		}
+		p.Hide()
+		return
+	}
+}
+
+func (p *dismissPopUp) TappedSecondary(e *fyne.PointEvent) {
+	p.Tapped(e)
+}
+
 func (m *monoTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
 	return theme.DefaultTheme().Color(n, v)
 }
@@ -813,5 +1037,5 @@ func (m *monoTheme) Icon(n fyne.ThemeIconName) fyne.Resource {
 	return theme.DefaultTheme().Icon(n)
 }
 func (m *monoTheme) Size(n fyne.ThemeSizeName) float32 {
-	return theme.DefaultTheme().Size(n)
+	return theme.DefaultTheme().Size(n) * 1.2
 }

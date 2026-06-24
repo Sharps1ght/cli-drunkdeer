@@ -68,9 +68,9 @@ func G60Layout() LayoutDef {
 				{Name: "Ctrl", Value: 118, Width: 1.25},
 			},
 		},
-		UnitSize:  60,
-		RowHeight: 60,
-		Gap:       4,
+		UnitSize:  72,
+		RowHeight: 72,
+		Gap:       5,
 	}
 }
 
@@ -145,9 +145,9 @@ func A75Layout() LayoutDef {
 				{Name: "\u2192", Value: 121, Width: 1},
 			},
 		},
-		UnitSize:  56,
-		RowHeight: 56,
-		Gap:       4,
+		UnitSize:  67,
+		RowHeight: 67,
+		Gap:       5,
 	}
 }
 
@@ -212,9 +212,9 @@ func G65Layout() LayoutDef {
 				{Name: "\u2192", Value: 119, Width: 1},
 			},
 		},
-		UnitSize:  58,
-		RowHeight: 58,
-		Gap:       4,
+		UnitSize:  70,
+		RowHeight: 70,
+		Gap:       5,
 	}
 }
 
@@ -291,9 +291,9 @@ func G75Layout() LayoutDef {
 				{Name: "\u2192", Value: 120, Width: 1},
 			},
 		},
-		UnitSize:  56,
-		RowHeight: 56,
-		Gap:       4,
+		UnitSize:  67,
+		RowHeight: 67,
+		Gap:       5,
 	}
 }
 
