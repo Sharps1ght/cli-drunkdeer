@@ -1,2 +1,0 @@
-there is no way to change select key or set of keys to specified color: hardware limitation
-setting a color via 'drunkdeer set light color "#******" will set the whole keyboard to a specified color regardless of custom colors set via gui inside profile
