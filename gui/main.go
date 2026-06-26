@@ -286,18 +286,119 @@ func applyProfileToKeyboard(profile *Profile, model string, dir string) {
 	os.Remove(tmpPath)
 }
 
-const sliderMinWidth float32 = 80
-
-type constrainedSlider struct {
-	fynetool.Slider
+type floatSliderOpts struct {
+	label     string
+	initial   float64
+	min, max  float64
+	step      float64
+	onChanged func(v float64)
 }
 
-func (s *constrainedSlider) MinSize() fyne.Size {
-	size := s.Slider.MinSize()
-	if size.Width < sliderMinWidth {
-		size.Width = sliderMinWidth
+func newFloatSlider(opts floatSliderOpts) (sl *fynetool.Slider, entry *fynetool.Entry, box *fyne.Container) {
+	l := fynetool.NewLabel(opts.label)
+	l.Alignment = fyne.TextAlignCenter
+
+	sl = fynetool.NewSlider(opts.min, opts.max)
+	sl.Step = opts.step
+	sl.Value = opts.initial
+	sl.Orientation = fynetool.Vertical
+
+	entry = fynetool.NewEntry()
+	entry.SetText(fmt.Sprintf("%.1fmm", opts.initial))
+
+	var updating bool
+	sl.OnChanged = func(v float64) {
+		if updating {
+			return
+		}
+		updating = true
+		entry.SetText(fmt.Sprintf("%.1fmm", v))
+		if opts.onChanged != nil {
+			opts.onChanged(v)
+		}
+		updating = false
 	}
-	return size
+
+	entry.OnChanged = func(s string) {
+		if updating {
+			return
+		}
+		s = strings.TrimSuffix(s, "mm")
+		s = strings.TrimSpace(s)
+		v, err := strconv.ParseFloat(s, 64)
+		if err != nil || v < opts.min || v > opts.max {
+			return
+		}
+		updating = true
+		sl.Value = v
+		sl.Refresh()
+		if opts.onChanged != nil {
+			opts.onChanged(v)
+		}
+		updating = false
+	}
+
+	wrapped := &minSizeWrap{inner: sl, minsize: fyne.NewSize(80, 0)}
+	wrapped.ExtendBaseWidget(wrapped)
+	box = container.NewBorder(l, entry, nil, nil, wrapped)
+	return
+}
+
+type intSliderOpts struct {
+	label     string
+	initial   int
+	min, max  int
+	onChanged func(v int)
+}
+
+func newIntSlider(opts intSliderOpts) (sl *fynetool.Slider, entry *fynetool.Entry, box *fyne.Container) {
+	l := fynetool.NewLabel(opts.label)
+	l.Alignment = fyne.TextAlignCenter
+
+	sl = fynetool.NewSlider(float64(opts.min), float64(opts.max))
+	sl.Step = 1
+	sl.Value = float64(opts.initial)
+	sl.Orientation = fynetool.Vertical
+
+	entry = fynetool.NewEntry()
+	entry.SetText(strconv.Itoa(opts.initial))
+
+	var updating bool
+	sl.OnChanged = func(v float64) {
+		if updating {
+			return
+		}
+		updating = true
+		iv := int(math.Round(v))
+		entry.SetText(strconv.Itoa(iv))
+		if opts.onChanged != nil {
+			opts.onChanged(iv)
+		}
+		updating = false
+	}
+
+	entry.OnChanged = func(s string) {
+		if updating {
+			return
+		}
+		s = strings.TrimSpace(s)
+		v, err := strconv.Atoi(s)
+		if err != nil || v < opts.min || v > opts.max {
+			return
+		}
+		updating = true
+		sl.Value = float64(v)
+		sl.Refresh()
+		if opts.onChanged != nil {
+			opts.onChanged(v)
+		}
+		updating = false
+	}
+
+	wrapped := &minSizeWrap{inner: sl, minsize: fyne.NewSize(80, 0)}
+	wrapped.ExtendBaseWidget(wrapped)
+	box = container.NewBorder(l, entry, nil, nil, wrapped)
+	return
 }
 
 func main() {
@@ -346,337 +447,106 @@ func main() {
 	kb := kbwidget.NewKeyboardWidget(model)
 	applyKeyboardColors(kb, profile, model)
 
-	var actUpdating bool
+	actuationSlider, actuationValue, actuationBox := newFloatSlider(floatSliderOpts{
+		label:     "Key\nDown",
+		initial:   float64(profile.DefaultActuation),
+		min:       0.2,
+		max:       3.8,
+		step:      0.1,
+		onChanged: func(v float64) { profile.DefaultActuation = float32(v) },
+	})
 
-	actuationLabel := fynetool.NewLabel("Key\nDown")
-	actuationLabel.Alignment = fyne.TextAlignCenter
-
-	actuationSlider := &constrainedSlider{Slider: *fynetool.NewSlider(0.2, 3.8)}
-	actuationSlider.Step = 0.1
-	actuationSlider.Value = float64(profile.DefaultActuation)
-	actuationSlider.Orientation = fynetool.Vertical
-
-	actuationValue := fynetool.NewEntry()
-	actuationValue.SetText(fmt.Sprintf("%.1fmm", profile.DefaultActuation))
-
-	actuationSlider.OnChanged = func(v float64) {
-		if actUpdating {
-			return
-		}
-		actUpdating = true
-		actuationValue.SetText(fmt.Sprintf("%.1fmm", v))
-		profile.DefaultActuation = float32(v)
-		actUpdating = false
-	}
-
-	actuationValue.OnChanged = func(s string) {
-		if actUpdating {
-			return
-		}
-		s = strings.TrimSuffix(s, "mm")
-		s = strings.TrimSpace(s)
-		v, err := strconv.ParseFloat(s, 64)
-		if err != nil || v < 0.2 || v > 3.8 {
-			return
-		}
-		actUpdating = true
-		actuationSlider.Value = v
-		actuationSlider.Refresh()
-		profile.DefaultActuation = float32(v)
-		actUpdating = false
-	}
-
-	actuationBox := container.NewBorder(
-		actuationLabel,
-		actuationValue,
-		nil, nil,
-		actuationSlider,
-	)
-
-	var rtDownUpdating bool
-	var rtUpUpdating bool
-
-	rtDownLabel := fynetool.NewLabel("RT\nDown")
-	rtDownLabel.Alignment = fyne.TextAlignCenter
-
-	rtDownSlider := &constrainedSlider{Slider: *fynetool.NewSlider(0.2, 3.8)}
-	rtDownSlider.Step = 0.1
-	rtDownSlider.Value = float64(profile.RapidTrigger.DefaultDownstroke)
-	rtDownSlider.Orientation = fynetool.Vertical
-
-	rtDownValue := fynetool.NewEntry()
-	rtDownValue.SetText(fmt.Sprintf("%.1fmm", profile.RapidTrigger.DefaultDownstroke))
-
-	rtDownSlider.OnChanged = func(v float64) {
-		if rtDownUpdating {
-			return
-		}
-		rtDownUpdating = true
-		rtDownValue.SetText(fmt.Sprintf("%.1fmm", v))
-		sel := kb.SelectedKeys()
-		if len(sel) > 0 {
-			if profile.RapidTriggers == nil {
-				profile.RapidTriggers = make(map[string][2]float32)
-			}
-			for _, idx := range sel {
-				name := driver.GetKeyByIndex(idx, model)
-				if name != "" {
-					vals := profile.RapidTriggers[name]
-					vals[0] = float32(v)
-					profile.RapidTriggers[name] = vals
+	rtDownSlider, rtDownValue, rtDownBox := newFloatSlider(floatSliderOpts{
+		label:   "RT\nDown",
+		initial: float64(profile.RapidTrigger.DefaultDownstroke),
+		min:     0.2,
+		max:     3.8,
+		step:    0.1,
+		onChanged: func(v float64) {
+			sel := kb.SelectedKeys()
+			if len(sel) > 0 {
+				if profile.RapidTriggers == nil {
+					profile.RapidTriggers = make(map[string][2]float32)
 				}
-			}
-		} else {
-			profile.RapidTrigger.DefaultDownstroke = float32(v)
-		}
-		rtDownUpdating = false
-	}
-
-	rtDownValue.OnChanged = func(s string) {
-		if rtDownUpdating {
-			return
-		}
-		s = strings.TrimSuffix(s, "mm")
-		s = strings.TrimSpace(s)
-		v, err := strconv.ParseFloat(s, 64)
-		if err != nil || v < 0.2 || v > 3.8 {
-			return
-		}
-		rtDownUpdating = true
-		rtDownSlider.Value = v
-		rtDownSlider.Refresh()
-		sel := kb.SelectedKeys()
-		if len(sel) > 0 {
-			if profile.RapidTriggers == nil {
-				profile.RapidTriggers = make(map[string][2]float32)
-			}
-			for _, idx := range sel {
-				name := driver.GetKeyByIndex(idx, model)
-				if name != "" {
-					vals := profile.RapidTriggers[name]
-					vals[0] = float32(v)
-					profile.RapidTriggers[name] = vals
+				for _, idx := range sel {
+					name := driver.GetKeyByIndex(idx, model)
+					if name != "" {
+						vals := profile.RapidTriggers[name]
+						vals[0] = float32(v)
+						profile.RapidTriggers[name] = vals
+					}
 				}
+			} else {
+				profile.RapidTrigger.DefaultDownstroke = float32(v)
 			}
-		} else {
-			profile.RapidTrigger.DefaultDownstroke = float32(v)
-		}
-		rtDownUpdating = false
-	}
+		},
+	})
 
-	rtDownBox := container.NewBorder(
-		rtDownLabel,
-		rtDownValue,
-		nil, nil,
-		rtDownSlider,
-	)
-
-	rtUpLabel := fynetool.NewLabel("RT\nUp")
-	rtUpLabel.Alignment = fyne.TextAlignCenter
-
-	rtUpSlider := &constrainedSlider{Slider: *fynetool.NewSlider(0.2, 3.8)}
-	rtUpSlider.Step = 0.1
-	rtUpSlider.Value = float64(profile.RapidTrigger.DefaultUpstroke)
-	rtUpSlider.Orientation = fynetool.Vertical
-
-	rtUpValue := fynetool.NewEntry()
-	rtUpValue.SetText(fmt.Sprintf("%.1fmm", profile.RapidTrigger.DefaultUpstroke))
-
-	rtUpSlider.OnChanged = func(v float64) {
-		if rtUpUpdating {
-			return
-		}
-		rtUpUpdating = true
-		rtUpValue.SetText(fmt.Sprintf("%.1fmm", v))
-		sel := kb.SelectedKeys()
-		if len(sel) > 0 {
-			if profile.RapidTriggers == nil {
-				profile.RapidTriggers = make(map[string][2]float32)
-			}
-			for _, idx := range sel {
-				name := driver.GetKeyByIndex(idx, model)
-				if name != "" {
-					vals := profile.RapidTriggers[name]
-					vals[1] = float32(v)
-					profile.RapidTriggers[name] = vals
+	rtUpSlider, rtUpValue, rtUpBox := newFloatSlider(floatSliderOpts{
+		label:   "RT\nUp",
+		initial: float64(profile.RapidTrigger.DefaultUpstroke),
+		min:     0.2,
+		max:     3.8,
+		step:    0.1,
+		onChanged: func(v float64) {
+			sel := kb.SelectedKeys()
+			if len(sel) > 0 {
+				if profile.RapidTriggers == nil {
+					profile.RapidTriggers = make(map[string][2]float32)
 				}
-			}
-		} else {
-			profile.RapidTrigger.DefaultUpstroke = float32(v)
-		}
-		rtUpUpdating = false
-	}
-
-	rtUpValue.OnChanged = func(s string) {
-		if rtUpUpdating {
-			return
-		}
-		s = strings.TrimSuffix(s, "mm")
-		s = strings.TrimSpace(s)
-		v, err := strconv.ParseFloat(s, 64)
-		if err != nil || v < 0.2 || v > 3.8 {
-			return
-		}
-		rtUpUpdating = true
-		rtUpSlider.Value = v
-		rtUpSlider.Refresh()
-		sel := kb.SelectedKeys()
-		if len(sel) > 0 {
-			if profile.RapidTriggers == nil {
-				profile.RapidTriggers = make(map[string][2]float32)
-			}
-			for _, idx := range sel {
-				name := driver.GetKeyByIndex(idx, model)
-				if name != "" {
-					vals := profile.RapidTriggers[name]
-					vals[1] = float32(v)
-					profile.RapidTriggers[name] = vals
+				for _, idx := range sel {
+					name := driver.GetKeyByIndex(idx, model)
+					if name != "" {
+						vals := profile.RapidTriggers[name]
+						vals[1] = float32(v)
+						profile.RapidTriggers[name] = vals
+					}
 				}
+			} else {
+				profile.RapidTrigger.DefaultUpstroke = float32(v)
 			}
-		} else {
-			profile.RapidTrigger.DefaultUpstroke = float32(v)
-		}
-		rtUpUpdating = false
-	}
+		},
+	})
 
-	rtUpBox := container.NewBorder(
-		rtUpLabel,
-		rtUpValue,
-		nil, nil,
-		rtUpSlider,
-	)
-
-	var brUpdating bool
 	var brTimer *time.Timer
-
-	brLabel := fynetool.NewLabel("Light\nLevel")
-	brLabel.Alignment = fyne.TextAlignCenter
-
-	brSlider := &constrainedSlider{Slider: *fynetool.NewSlider(1, 10)}
-	brSlider.Step = 1
-	brSlider.Value = float64(profile.Light.Brightness + 1)
-	brSlider.Orientation = fynetool.Vertical
-
-	brValue := fynetool.NewEntry()
-	brValue.SetText(strconv.Itoa(profile.Light.Brightness + 1))
-
-	brSlider.OnChanged = func(v float64) {
-		if brUpdating {
-			return
-		}
-		brUpdating = true
-		iv := int(math.Round(v))
-		brValue.SetText(strconv.Itoa(iv))
-		profile.Light.Brightness = iv - 1
-		brUpdating = false
-		if brTimer != nil {
-			brTimer.Stop()
-		}
-		brTimer = time.AfterFunc(500*time.Millisecond, func() {
-			cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "brightness", strconv.Itoa(iv-1))
-			if out, err := cmd.CombinedOutput(); err != nil {
-				log.Printf("Error setting light brightness: %v\n%s", err, out)
+	brSlider, brValue, brBox := newIntSlider(intSliderOpts{
+		label:   "Light\nLevel",
+		initial: profile.Light.Brightness + 1,
+		min:     1,
+		max:     10,
+		onChanged: func(v int) {
+			profile.Light.Brightness = v - 1
+			if brTimer != nil {
+				brTimer.Stop()
 			}
-		})
-	}
+			brTimer = time.AfterFunc(500*time.Millisecond, func() {
+				cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "brightness", strconv.Itoa(v-1))
+				if out, err := cmd.CombinedOutput(); err != nil {
+					log.Printf("Error setting light brightness: %v\n%s", err, out)
+				}
+			})
+		},
+	})
 
-	brValue.OnChanged = func(s string) {
-		if brUpdating {
-			return
-		}
-		s = strings.TrimSpace(s)
-		v, err := strconv.Atoi(s)
-		if err != nil || v < 1 || v > 10 {
-			return
-		}
-		brUpdating = true
-		brSlider.Value = float64(v)
-		brSlider.Refresh()
-		profile.Light.Brightness = v - 1
-		brUpdating = false
-		if brTimer != nil {
-			brTimer.Stop()
-		}
-		brTimer = time.AfterFunc(500*time.Millisecond, func() {
-			cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "brightness", strconv.Itoa(v-1))
-			if out, err := cmd.CombinedOutput(); err != nil {
-				log.Printf("Error setting light brightness: %v\n%s", err, out)
-			}
-		})
-	}
-
-	brBox := container.NewBorder(
-		brLabel,
-		brValue,
-		nil, nil,
-		brSlider,
-	)
-
-	var spUpdating bool
 	var spTimer *time.Timer
-
-	spLabel := fynetool.NewLabel("Anim\nSpeed")
-	spLabel.Alignment = fyne.TextAlignCenter
-
-	spSlider := &constrainedSlider{Slider: *fynetool.NewSlider(1, 10)}
-	spSlider.Step = 1
-	spSlider.Value = float64(profile.Light.Speed + 1)
-	spSlider.Orientation = fynetool.Vertical
-
-	spValue := fynetool.NewEntry()
-	spValue.SetText(strconv.Itoa(profile.Light.Speed + 1))
-
-	spSlider.OnChanged = func(v float64) {
-		if spUpdating {
-			return
-		}
-		spUpdating = true
-		iv := int(math.Round(v))
-		spValue.SetText(strconv.Itoa(iv))
-		profile.Light.Speed = iv - 1
-		spUpdating = false
-		if spTimer != nil {
-			spTimer.Stop()
-		}
-		spTimer = time.AfterFunc(500*time.Millisecond, func() {
-			cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "speed", strconv.Itoa(iv-1))
-			if out, err := cmd.CombinedOutput(); err != nil {
-				log.Printf("Error setting light speed: %v\n%s", err, out)
+	spSlider, spValue, spBox := newIntSlider(intSliderOpts{
+		label:   "Anim\nSpeed",
+		initial: profile.Light.Speed + 1,
+		min:     1,
+		max:     10,
+		onChanged: func(v int) {
+			profile.Light.Speed = v - 1
+			if spTimer != nil {
+				spTimer.Stop()
 			}
-		})
-	}
-
-	spValue.OnChanged = func(s string) {
-		if spUpdating {
-			return
-		}
-		s = strings.TrimSpace(s)
-		v, err := strconv.Atoi(s)
-		if err != nil || v < 1 || v > 10 {
-			return
-		}
-		spUpdating = true
-		spSlider.Value = float64(v)
-		spSlider.Refresh()
-		profile.Light.Speed = v - 1
-		spUpdating = false
-		if spTimer != nil {
-			spTimer.Stop()
-		}
-		spTimer = time.AfterFunc(500*time.Millisecond, func() {
-			cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "speed", strconv.Itoa(v-1))
-			if out, err := cmd.CombinedOutput(); err != nil {
-				log.Printf("Error setting light speed: %v\n%s", err, out)
-			}
-		})
-	}
-
-	spBox := container.NewBorder(
-		spLabel,
-		spValue,
-		nil, nil,
-		spSlider,
-	)
+			spTimer = time.AfterFunc(500*time.Millisecond, func() {
+				cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "speed", strconv.Itoa(v-1))
+				if out, err := cmd.CombinedOutput(); err != nil {
+					log.Printf("Error setting light speed: %v\n%s", err, out)
+				}
+			})
+		},
+	})
 
 	rightPanel := container.NewHBox(actuationBox, rtDownBox, rtUpBox)
 	leftPanel := container.NewHBox(brBox, spBox)
@@ -919,16 +789,10 @@ func main() {
 			name := driver.GetKeyByIndex(sel[0], model)
 			if name != "" {
 				if vals, ok := profile.RapidTriggers[name]; ok {
-					rtDownUpdating = true
 					rtDownSlider.Value = float64(vals[0])
 					rtDownSlider.Refresh()
-					rtDownValue.SetText(fmt.Sprintf("%.1fmm", vals[0]))
-					rtDownUpdating = false
-					rtUpUpdating = true
 					rtUpSlider.Value = float64(vals[1])
 					rtUpSlider.Refresh()
-					rtUpValue.SetText(fmt.Sprintf("%.1fmm", vals[1]))
-					rtUpUpdating = false
 				}
 			}
 		}
