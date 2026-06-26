@@ -64,7 +64,7 @@ var actionGroups = []actionGroup{
 		},
 	},
 	{
-		"Big Keys",
+		"Functional Keys",
 		[]string{
 			driver.KeyF1, driver.KeyF2, driver.KeyF3, driver.KeyF4,
 			driver.KeyF5, driver.KeyF6, driver.KeyF7, driver.KeyF8,

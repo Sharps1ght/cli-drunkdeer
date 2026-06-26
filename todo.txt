@@ -1,1 +1,0 @@
-change \'drunkdeer-cli\' to \'drunkdeer\' somewhere inside the repo and recompile

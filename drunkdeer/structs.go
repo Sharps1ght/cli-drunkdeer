@@ -79,6 +79,7 @@ type LightSettings struct {
 	Sequence   int               `json:"sequence"`
 	Speed      int               `json:"speed"`
 	Brightness int               `json:"brightness"`
+	ColorIndex int               `json:"colorIndex,omitempty"`
 	Color      *ColorSetting     `json:"color,omitempty"`
 	Colors     map[string]string `json:"colors,omitempty"`
 	TurboColor *ColorSetting     `json:"turboColor,omitempty"`

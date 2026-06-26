@@ -27,8 +27,18 @@ var defaultFnKeys = map[string]map[int]bool{
 var defaultMenuKeys = map[string]map[int]bool{
 	KEYBOARD_G75: {42: true, 98: true, 119: true, 120: true, 121: true},
 	KEYBOARD_A75: {42: true, 98: true, 119: true, 120: true, 121: true},
-	KEYBOARD_G65: {46: true, 47: true, 48: true, 49: true, 67: true, 68: true, 69: true, 70: true},
-	KEYBOARD_G60: {46: true, 47: true, 48: true, 49: true, 67: true, 68: true, 69: true, 70: true},
+	KEYBOARD_G65: {
+		22: true, 23: true, 24: true, 25: true, 26: true,
+		27: true, 28: true, 29: true, 30: true, 31: true,
+		46: true, 47: true, 48: true, 49: true,
+		67: true, 68: true, 69: true, 70: true,
+	},
+	KEYBOARD_G60: {
+		22: true, 23: true, 24: true, 25: true, 26: true,
+		27: true, 28: true, 29: true, 30: true, 31: true,
+		46: true, 47: true, 48: true, 49: true,
+		67: true, 68: true, 69: true, 70: true,
+	},
 }
 
 func DefaultFnKeys(model string) map[int]bool {
@@ -76,6 +86,8 @@ func DefaultMenuKeys(model string) map[int]bool {
 
 var defaultMenuActions = map[string]map[int]string{
 	KEYBOARD_G65: {
+		22: "1", 23: "2", 24: "3", 25: "4", 26: "5",
+		27: "6", 28: "7", 29: "8", 30: "9", 31: "0",
 		46: KeyLightModeSw,
 		47: KeyTurbo,
 		48: KeyLightColorCycle,
@@ -86,6 +98,8 @@ var defaultMenuActions = map[string]map[int]string{
 		70: KeyLightSpeedInc,
 	},
 	KEYBOARD_G60: {
+		22: "1", 23: "2", 24: "3", 25: "4", 26: "5",
+		27: "6", 28: "7", 29: "8", 30: "9", 31: "0",
 		46: KeyLightModeSw,
 		47: KeyTurbo,
 		48: KeyLightColorCycle,

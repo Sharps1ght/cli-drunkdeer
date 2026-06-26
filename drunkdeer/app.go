@@ -223,7 +223,12 @@ func (a *App) configureLights(config *Config) {
 		if config.Light.Color.Fill != "" {
 			defaultCol = parseHexColor(config.Light.Color.Fill)
 		}
-		colIdx = byte(config.Light.Color.Index)
+		if config.Light.Color.Index != 0 {
+			colIdx = byte(config.Light.Color.Index)
+		}
+	}
+	if colIdx == 0 && config.Light.ColorIndex != 0 {
+		colIdx = byte(config.Light.ColorIndex)
 	}
 
 	turboDefaultCol := defaultCol
@@ -303,17 +308,24 @@ func (a *App) applySettings(config *Config, actuations, downstrokes, upstrokes [
 
 func (a *App) applyRemap(config *Config) {
 	model := a.controller.GetIdentity().KeyboardModel
+
+	a.controller.SendClearRTPData()
+	a.controller.Flush()
+	time.Sleep(20 * time.Millisecond)
 	layers := []struct {
 		layer    byte
 		entries  map[string]string
 		defaults map[int]string
 	}{
 		{1, config.Remap.Default, nil},
-		{2, config.Remap.Fn, driver.DefaultFnActions(model)},
+		{2, config.Remap.Fn, nil},
 		{3, config.Remap.Menu, driver.DefaultMenuActions(model)},
 	}
 
 	for _, l := range layers {
+		if l.layer == 2 {
+			continue // TEMP: skip Fn layer to test if layer 3 works independently
+		}
 		keys := make(map[int]*driver.RemapKey)
 
 		for idx, defAction := range l.defaults {
@@ -433,14 +445,24 @@ func (a *App) handleSet() {
 
 	case "light":
 		switch key {
-		case "color":
+		case "colorIndex":
 			if len(values) < 1 {
-				color.HiRed("Usage: drunkdeer set light color <hex>")
+				color.HiRed("Usage: drunkdeer set light colorIndex <0-8>")
 				os.Exit(1)
 			}
-			state.Light.Color = &ColorSetting{Fill: values[0]}
-			sendCustomColor(state.Light.Colors, values[0], a.controller)
-			color.HiGreen("Default light color = %s", values[0])
+			v, err := strconv.Atoi(values[0])
+			if err != nil || v < 0 || v > 8 {
+				color.HiRed("Invalid color index (0-8): %s", values[0])
+				os.Exit(1)
+			}
+			state.Light.ColorIndex = v
+			br := byte(state.Light.Brightness)
+			if br == 0 {
+				br = 9
+			}
+			a.controller.SendLEDModeSelect(0x00, byte(state.Light.Sequence), byte(state.Light.Speed), br, byte(v))
+			a.controller.Flush()
+			color.HiGreen("Light color index = %d", v)
 
 		case "turboColor":
 			if len(values) < 1 {
@@ -456,28 +478,6 @@ func (a *App) handleSet() {
 			)
 			a.controller.Flush()
 			color.HiGreen("Turbo light color = %s", values[0])
-
-		case "colors":
-			if len(values) < 2 {
-				color.HiRed("Usage: drunkdeer set light colors <key> <hex>")
-				os.Exit(1)
-			}
-			for _, name := range splitKeys(values[0]) {
-				state.Light.Colors[strings.TrimSpace(name)] = values[1]
-			}
-			// use existing default: controller > state > per-key color
-			defaultFill := ""
-			if a.controller.Light.DefaultColor != [3]byte{} {
-				c := a.controller.Light.DefaultColor
-				defaultFill = fmt.Sprintf("#%02x%02x%02x", c[0], c[1], c[2])
-			} else if state.Light.Color != nil && state.Light.Color.Fill != "" {
-				defaultFill = state.Light.Color.Fill
-			}
-			if defaultFill == "" {
-				defaultFill = values[1]
-			}
-			sendCustomColor(state.Light.Colors, defaultFill, a.controller)
-			color.HiGreen("Light colors %s = %s", values[0], values[1])
 
 		case "brightness":
 			if len(values) < 1 {
@@ -534,7 +534,7 @@ func (a *App) handleSet() {
 
 		default:
 			color.HiRed("Unknown light field: %s", key)
-			color.White("Valid fields: color, turboColor, colors, brightness, sequence, speed")
+			color.White("Valid fields: colorIndex, turboColor, brightness, sequence, speed")
 			os.Exit(1)
 		}
 
@@ -689,25 +689,6 @@ func setDefaultBrightness(c *driver.DrunkDeerController) byte {
 		return 9
 	}
 	return c.Light.Brightness
-}
-
-func sendCustomColor(perKey map[string]string, defaultHex string, c *driver.DrunkDeerController) {
-	rgb := parseHexColor(defaultHex)
-	c.Light.DefaultColor = rgb
-	br := setDefaultBrightness(c)
-	cmap := make(map[int][3]byte)
-	model := c.GetIdentity().KeyboardModel
-	for name, hex := range perKey {
-		idx, ok := driver.ResolveKeyToIndex(name, model)
-		if ok {
-			cmap[idx] = parseHexColor(hex)
-		}
-	}
-	c.SendLEDModeSelect(0x00, driver.SEQUENCE_CUSTOM, c.Light.Speed, br, 0xFF)
-	c.Flush()
-	time.Sleep(10 * time.Millisecond)
-	c.SendCustomColorData(cmap, br, rgb, false)
-	c.Flush()
 }
 
 func (a *App) showHelp() {
