@@ -1,0 +1,10 @@
+red/rainbow
+red
+green
+blue
+yellow
+magenta
+cyan
+white
+white
+

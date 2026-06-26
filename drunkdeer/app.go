@@ -490,7 +490,7 @@ func (a *App) handleSet() {
 				os.Exit(1)
 			}
 			state.Light.Brightness = v
-			a.controller.SendLEDModeSelect(0x00, byte(state.Light.Sequence), byte(state.Light.Speed), byte(v), 0x00)
+			a.controller.SendLEDModeSelect(0x00, byte(state.Light.Sequence), byte(state.Light.Speed), byte(v), byte(state.Light.ColorIndex))
 			a.controller.Flush()
 			color.HiGreen("Brightness = %d", v)
 
@@ -509,7 +509,7 @@ func (a *App) handleSet() {
 			if br == 0 {
 				br = 9
 			}
-			a.controller.SendLEDModeSelect(0x00, byte(v), byte(state.Light.Speed), br, 0x00)
+			a.controller.SendLEDModeSelect(0x00, byte(v), byte(state.Light.Speed), br, byte(state.Light.ColorIndex))
 			a.controller.Flush()
 			color.HiGreen("Light sequence = %d", v)
 
@@ -528,7 +528,7 @@ func (a *App) handleSet() {
 			if br == 0 {
 				br = 9
 			}
-			a.controller.SendLEDModeSelect(0x00, byte(state.Light.Sequence), byte(v), br, 0x00)
+			a.controller.SendLEDModeSelect(0x00, byte(state.Light.Sequence), byte(v), br, byte(state.Light.ColorIndex))
 			a.controller.Flush()
 			color.HiGreen("Light speed = %d", v)
 

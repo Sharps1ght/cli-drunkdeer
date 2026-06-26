@@ -1,5 +1,13 @@
 package widget
 
+import (
+	"image/color"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	fynetool "fyne.io/fyne/v2/widget"
+)
+
 type KeyDef struct {
 	Name  string
 	Value int
@@ -320,3 +328,32 @@ func (l LayoutDef) FindByName(name string) int {
 	}
 	return -1
 }
+
+type MinSizeWrap struct {
+	fynetool.BaseWidget
+	Inner   fyne.CanvasObject
+	Minsize fyne.Size
+}
+
+func NewMinSizeWrap(inner fyne.CanvasObject, minsize fyne.Size) *MinSizeWrap {
+	m := &MinSizeWrap{Inner: inner, Minsize: minsize}
+	m.ExtendBaseWidget(m)
+	return m
+}
+
+func (m *MinSizeWrap) CreateRenderer() fyne.WidgetRenderer {
+	return &spriteRenderer{inner: m.Inner, minSize: m.Minsize}
+}
+
+type spriteRenderer struct {
+	inner   fyne.CanvasObject
+	minSize fyne.Size
+}
+
+func (r *spriteRenderer) Objects() []fyne.CanvasObject              { return []fyne.CanvasObject{r.inner} }
+func (r *spriteRenderer) Layout(s fyne.Size)                          { r.inner.Resize(s) }
+func (r *spriteRenderer) MinSize() fyne.Size                          { return r.minSize }
+func (r *spriteRenderer) Refresh()                                    { canvas.Refresh(r.inner) }
+func (r *spriteRenderer) ApplyTheme()                                 {}
+func (r *spriteRenderer) BackgroundColor() color.Color                { return color.Transparent }
+func (r *spriteRenderer) Destroy()                                    {}

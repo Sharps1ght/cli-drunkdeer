@@ -183,12 +183,12 @@ var colorOptions = []struct {
 }{
 	{"Rainbow", 0, ""},
 	{"Red", 1, "#FF0000"},
-	{"Green", 4, "#00FF00"},
-	{"Blue", 6, "#0000FF"},
-	{"Yellow", 3, "#FFFF00"},
-	{"Magenta", 7, "#FF00FF"},
-	{"Cyan", 5, "#00FFFF"},
-	{"White", 8, "#FFFFFF"},
+	{"Green", 2, "#00FF00"},
+	{"Blue", 3, "#0000FF"},
+	{"Yellow", 4, "#FFFF00"},
+	{"Magenta", 5, "#FF00FF"},
+	{"Cyan", 6, "#00FFFF"},
+	{"White", 7, "#FFFFFF"},
 }
 
 func buildRainbowColors(model string) map[int]string {
@@ -338,8 +338,7 @@ func newFloatSlider(opts floatSliderOpts) (sl *fynetool.Slider, entry *fynetool.
 		updating = false
 	}
 
-	wrapped := &minSizeWrap{inner: sl, minsize: fyne.NewSize(80, 0)}
-	wrapped.ExtendBaseWidget(wrapped)
+	wrapped := kbwidget.NewMinSizeWrap(sl, fyne.NewSize(80, 0))
 	box = container.NewBorder(l, entry, nil, nil, wrapped)
 	return
 }
@@ -395,8 +394,7 @@ func newIntSlider(opts intSliderOpts) (sl *fynetool.Slider, entry *fynetool.Entr
 		updating = false
 	}
 
-	wrapped := &minSizeWrap{inner: sl, minsize: fyne.NewSize(80, 0)}
-	wrapped.ExtendBaseWidget(wrapped)
+	wrapped := kbwidget.NewMinSizeWrap(sl, fyne.NewSize(80, 0))
 	box = container.NewBorder(l, entry, nil, nil, wrapped)
 	return
 }
@@ -516,10 +514,7 @@ func main() {
 		max:     10,
 		onChanged: func(v int) {
 			profile.Light.Brightness = v - 1
-			if brTimer != nil {
-				brTimer.Stop()
-			}
-			brTimer = time.AfterFunc(500*time.Millisecond, func() {
+			brTimer = startDebounce(brTimer, 500*time.Millisecond, func() {
 				cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "brightness", strconv.Itoa(v-1))
 				if out, err := cmd.CombinedOutput(); err != nil {
 					log.Printf("Error setting light brightness: %v\n%s", err, out)
@@ -536,10 +531,7 @@ func main() {
 		max:     10,
 		onChanged: func(v int) {
 			profile.Light.Speed = v - 1
-			if spTimer != nil {
-				spTimer.Stop()
-			}
-			spTimer = time.AfterFunc(500*time.Millisecond, func() {
+			spTimer = startDebounce(spTimer, 500*time.Millisecond, func() {
 				cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "speed", strconv.Itoa(v-1))
 				if out, err := cmd.CombinedOutput(); err != nil {
 					log.Printf("Error setting light speed: %v\n%s", err, out)
@@ -547,6 +539,20 @@ func main() {
 			})
 		},
 	})
+
+	setRTEnabled := func(en bool) {
+		if en {
+			rtDownSlider.Enable()
+			rtDownValue.Enable()
+			rtUpSlider.Enable()
+			rtUpValue.Enable()
+		} else {
+			rtDownSlider.Disable()
+			rtDownValue.Disable()
+			rtUpSlider.Disable()
+			rtUpValue.Disable()
+		}
+	}
 
 	rightPanel := container.NewHBox(actuationBox, rtDownBox, rtUpBox)
 	leftPanel := container.NewHBox(brBox, spBox)
@@ -677,6 +683,7 @@ func main() {
 	var remapActive bool
 
 	var startingUp = true
+	var updatingColorSelect bool
 
 	sequenceSelect := fynetool.NewSelect(sequenceLabels, func(label string) {
 		var seq int
@@ -740,13 +747,17 @@ func main() {
 			}
 		}
 		applyKeyboardColors(kb, profile, model)
-		cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "colorIndex", strconv.Itoa(profile.Light.ColorIndex))
-		if out, err := cmd.CombinedOutput(); err != nil {
-			log.Printf("Error setting light color index: %v\n%s", err, out)
+		if !updatingColorSelect {
+			cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "colorIndex", strconv.Itoa(profile.Light.ColorIndex))
+			if out, err := cmd.CombinedOutput(); err != nil {
+				log.Printf("Error setting light color index: %v\n%s", err, out)
+			}
 		}
 	})
 
 	updateColorSelectState = func() {
+		updatingColorSelect = true
+		defer func() { updatingColorSelect = false }()
 		ct := sequenceColorType[profile.Light.Sequence]
 		if ct == 0 {
 			colorIndexSelect.Disable()
@@ -829,6 +840,55 @@ func main() {
 	var turboHexUpdating bool
 	var turboTimer *time.Timer
 	turboHexEntry := fynetool.NewEntry()
+
+	syncProfileUI := func() {
+		applyKeyboardColors(kb, profile, model)
+		currentSeqIdx = 0
+		for i, v := range sequenceValues {
+			if v == profile.Light.Sequence {
+				currentSeqIdx = i
+				break
+			}
+		}
+		sequenceSelect.SetSelected(sequenceLabels[currentSeqIdx])
+		updateColorBtnState()
+		updateColorSelectState()
+		actuationSlider.Value = float64(profile.DefaultActuation)
+		actuationSlider.Refresh()
+		actuationValue.SetText(fmt.Sprintf("%.1fmm", profile.DefaultActuation))
+		rtDownSlider.Value = float64(profile.RapidTrigger.DefaultDownstroke)
+		rtDownSlider.Refresh()
+		rtDownValue.SetText(fmt.Sprintf("%.1fmm", profile.RapidTrigger.DefaultDownstroke))
+		rtUpSlider.Value = float64(profile.RapidTrigger.DefaultUpstroke)
+		rtUpSlider.Refresh()
+		rtUpValue.SetText(fmt.Sprintf("%.1fmm", profile.RapidTrigger.DefaultUpstroke))
+		brSlider.Value = float64(profile.Light.Brightness + 1)
+		brSlider.Refresh()
+		brValue.SetText(strconv.Itoa(profile.Light.Brightness + 1))
+		spSlider.Value = float64(profile.Light.Speed + 1)
+		spSlider.Refresh()
+		spValue.SetText(strconv.Itoa(profile.Light.Speed + 1))
+		if rtCheck != nil {
+			rtCheck.SetChecked(profile.RapidTrigger.Enabled)
+		}
+		setRTEnabled(profile.RapidTrigger.Enabled)
+		if turboCheck != nil {
+			turboCheck.SetChecked(profile.Turbo)
+		}
+		if profile.Turbo {
+			turboHexEntry.Enable()
+		} else {
+			turboHexEntry.Disable()
+		}
+		turboHexUpdating = true
+		if profile.Light.TurboColor != "" {
+			turboHexEntry.SetText(profile.Light.TurboColor)
+		} else {
+			turboHexEntry.SetText(profile.Light.Color)
+		}
+		turboHexUpdating = false
+	}
+
 	profileSelect = fynetool.NewSelect(profileOptions, func(name string) {
 		if selecting {
 			return
@@ -866,61 +926,9 @@ func main() {
 					profileSelect.SetSelected(name)
 					currentProfile = name
 
-					setMismatchUI(false)
-					profile.DefaultActuation = p.DefaultActuation
-					profile.RapidTrigger = p.RapidTrigger
-					profile.RapidTriggers = p.RapidTriggers
-					profile.Turbo = p.Turbo
-					applyKeyboardColors(kb, profile, model)
-					currentSeqIdx = 0
-					for i, v := range sequenceValues {
-						if v == profile.Light.Sequence {
-							currentSeqIdx = i
-							break
-						}
-					}
-				sequenceSelect.SetSelected(sequenceLabels[currentSeqIdx])
-				updateColorBtnState()
-				updateColorSelectState()
-				actuationSlider.Value = float64(p.DefaultActuation)
-					actuationSlider.Refresh()
-					actuationValue.SetText(fmt.Sprintf("%.1fmm", p.DefaultActuation))
-					rtDownSlider.Value = float64(p.RapidTrigger.DefaultDownstroke)
-					rtDownSlider.Refresh()
-					rtDownValue.SetText(fmt.Sprintf("%.1fmm", p.RapidTrigger.DefaultDownstroke))
-					rtUpSlider.Value = float64(p.RapidTrigger.DefaultUpstroke)
-					rtUpSlider.Refresh()
-					rtUpValue.SetText(fmt.Sprintf("%.1fmm", p.RapidTrigger.DefaultUpstroke))
-					brSlider.Value = float64(p.Light.Brightness + 1)
-					brSlider.Refresh()
-					brValue.SetText(strconv.Itoa(p.Light.Brightness + 1))
-					spSlider.Value = float64(p.Light.Speed + 1)
-					spSlider.Refresh()
-					spValue.SetText(strconv.Itoa(p.Light.Speed + 1))
-					if rtCheck != nil {
-						rtCheck.SetChecked(p.RapidTrigger.Enabled)
-						if p.RapidTrigger.Enabled {
-							rtDownSlider.Enable()
-							rtDownValue.Enable()
-							rtUpSlider.Enable()
-							rtUpValue.Enable()
-						} else {
-							rtDownSlider.Disable()
-							rtDownValue.Disable()
-							rtUpSlider.Disable()
-							rtUpValue.Disable()
-						}
-					}
-					if turboCheck != nil {
-						turboCheck.SetChecked(p.Turbo)
-					}
-					turboHexUpdating = true
-					if p.Light.TurboColor != "" {
-						turboHexEntry.SetText(p.Light.TurboColor)
-					} else {
-						turboHexEntry.SetText(p.Light.Color)
-					}
-					turboHexUpdating = false
+				setMismatchUI(false)
+				*profile = *p
+				syncProfileUI()
 				},
 				w,
 			)
@@ -940,56 +948,7 @@ func main() {
 			setMismatchUI(false)
 		}
 		*profile = *p
-		applyKeyboardColors(kb, profile, model)
-		currentSeqIdx = 0
-		for i, v := range sequenceValues {
-			if v == profile.Light.Sequence {
-				currentSeqIdx = i
-				break
-			}
-		}
-		sequenceSelect.SetSelected(sequenceLabels[currentSeqIdx])
-		updateColorBtnState()
-		updateColorSelectState()
-		actuationSlider.Value = float64(profile.DefaultActuation)
-		actuationSlider.Refresh()
-		actuationValue.SetText(fmt.Sprintf("%.1fmm", profile.DefaultActuation))
-		rtDownSlider.Value = float64(profile.RapidTrigger.DefaultDownstroke)
-		rtDownSlider.Refresh()
-		rtDownValue.SetText(fmt.Sprintf("%.1fmm", profile.RapidTrigger.DefaultDownstroke))
-		rtUpSlider.Value = float64(profile.RapidTrigger.DefaultUpstroke)
-		rtUpSlider.Refresh()
-		rtUpValue.SetText(fmt.Sprintf("%.1fmm", profile.RapidTrigger.DefaultUpstroke))
-		brSlider.Value = float64(profile.Light.Brightness + 1)
-		brSlider.Refresh()
-		brValue.SetText(strconv.Itoa(profile.Light.Brightness + 1))
-		spSlider.Value = float64(profile.Light.Speed + 1)
-		spSlider.Refresh()
-		spValue.SetText(strconv.Itoa(profile.Light.Speed + 1))
-		if rtCheck != nil {
-			rtCheck.SetChecked(profile.RapidTrigger.Enabled)
-			if profile.RapidTrigger.Enabled {
-				rtDownSlider.Enable()
-				rtDownValue.Enable()
-				rtUpSlider.Enable()
-				rtUpValue.Enable()
-			} else {
-				rtDownSlider.Disable()
-				rtDownValue.Disable()
-				rtUpSlider.Disable()
-				rtUpValue.Disable()
-			}
-		}
-		if turboCheck != nil {
-			turboCheck.SetChecked(profile.Turbo)
-		}
-		turboHexUpdating = true
-		if profile.Light.TurboColor != "" {
-			turboHexEntry.SetText(profile.Light.TurboColor)
-		} else {
-			turboHexEntry.SetText(profile.Light.Color)
-		}
-		turboHexUpdating = false
+		syncProfileUI()
 	})
 	deleteBtn := fynetool.NewButton("Delete", func() {
 		if len(profileSelect.Options) <= 2 {
@@ -1012,25 +971,10 @@ func main() {
 
 	rtCheck = fynetool.NewCheck("Rapid Trigger", func(checked bool) {
 		profile.RapidTrigger.Enabled = checked
-		if checked {
-			rtDownSlider.Enable()
-			rtDownValue.Enable()
-			rtUpSlider.Enable()
-			rtUpValue.Enable()
-		} else {
-			rtDownSlider.Disable()
-			rtDownValue.Disable()
-			rtUpSlider.Disable()
-			rtUpValue.Disable()
-		}
+		setRTEnabled(checked)
 	})
 	rtCheck.SetChecked(profile.RapidTrigger.Enabled)
-	if !profile.RapidTrigger.Enabled {
-		rtDownSlider.Disable()
-		rtDownValue.Disable()
-		rtUpSlider.Disable()
-		rtUpValue.Disable()
-	}
+	setRTEnabled(profile.RapidTrigger.Enabled)
 
 	if profile.Light.TurboColor != "" {
 		turboHexEntry.SetText(profile.Light.TurboColor)
@@ -1044,10 +988,7 @@ func main() {
 		}
 		profile.Light.TurboColor = s
 		applyKeyboardColors(kb, profile, model)
-		if turboTimer != nil {
-			turboTimer.Stop()
-		}
-		turboTimer = time.AfterFunc(500*time.Millisecond, func() {
+		turboTimer = startDebounce(turboTimer, 500*time.Millisecond, func() {
 			matched, _ := regexp.MatchString("^#[0-9a-fA-F]{6}$", s)
 			if matched {
 				cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "turboColor", s)
@@ -1062,8 +1003,7 @@ func main() {
 	} else {
 		turboHexEntry.Disable()
 	}
-	turboHexWrapped := &minSizeWrap{inner: turboHexEntry, minsize: fyne.NewSize(108, 38)}
-	turboHexWrapped.ExtendBaseWidget(turboHexWrapped)
+	turboHexWrapped := kbwidget.NewMinSizeWrap(turboHexEntry, fyne.NewSize(108, 38))
 
 	turboCheck = fynetool.NewCheck("Turbo", func(checked bool) {
 		profile.Turbo = checked
@@ -1138,18 +1078,10 @@ func main() {
 		remapActive = s != "Off"
 		if s == "Off" {
 			sequenceSelect.Enable()
-			if profile.RapidTrigger.Enabled {
-				rtDownSlider.Enable()
-				rtDownValue.Enable()
-				rtUpSlider.Enable()
-				rtUpValue.Enable()
-			}
+			setRTEnabled(profile.RapidTrigger.Enabled)
 		} else {
 			sequenceSelect.Disable()
-			rtDownSlider.Disable()
-			rtDownValue.Disable()
-			rtUpSlider.Disable()
-			rtUpValue.Disable()
+			setRTEnabled(false)
 		}
 		updateColorBtnState()
 	})
@@ -1259,47 +1191,26 @@ func main() {
 
 	setMismatchUI = func(mismatch bool) {
 		modelMismatchLabel.Hidden = !mismatch
+		widgets := []fyne.Disableable{
+			profileSelect, apply, saveBtn, deleteBtn,
+			colorBtn, colorIndexSelect,
+			actuationSlider, actuationValue,
+			rtDownSlider, rtDownValue, rtUpSlider, rtUpValue,
+			rtCheck, turboCheck, turboHexEntry,
+			brSlider, brValue, spSlider, spValue,
+		}
+		for _, w := range widgets {
+			if mismatch {
+				w.Disable()
+			} else {
+				w.Enable()
+			}
+		}
 		if mismatch {
-			profileSelect.Disable()
-			apply.Disable()
-			saveBtn.Disable()
-			deleteBtn.Disable()
-			colorBtn.Disable()
-			colorIndexSelect.Disable()
-			actuationSlider.Disable()
-			actuationValue.Disable()
-			rtDownSlider.Disable()
-			rtDownValue.Disable()
-			rtUpSlider.Disable()
-			rtUpValue.Disable()
-			rtCheck.Disable()
-			turboCheck.Disable()
-			turboHexEntry.Disable()
-			brSlider.Disable()
-			brValue.Disable()
-			spSlider.Disable()
-			spValue.Disable()
 			remapBtn.Disable()
 		} else {
-			profileSelect.Enable()
-			apply.Enable()
-			saveBtn.Enable()
-			deleteBtn.Enable()
 			updateColorBtnState()
 			updateColorSelectState()
-			actuationSlider.Enable()
-			actuationValue.Enable()
-			rtDownSlider.Enable()
-			rtDownValue.Enable()
-			rtUpSlider.Enable()
-			rtUpValue.Enable()
-			rtCheck.Enable()
-			turboCheck.Enable()
-			turboHexEntry.Enable()
-			brSlider.Enable()
-			brValue.Enable()
-			spSlider.Enable()
-			spValue.Enable()
 		}
 	}
 	if initialModel != "" && initialModel != model {
@@ -1335,28 +1246,12 @@ func main() {
 	w.ShowAndRun()
 }
 
-type minSizeWrap struct {
-	fynetool.BaseWidget
-	inner   fyne.CanvasObject
-	minsize fyne.Size
+func startDebounce(prev *time.Timer, delay time.Duration, fn func()) *time.Timer {
+	if prev != nil {
+		prev.Stop()
+	}
+	return time.AfterFunc(delay, fn)
 }
-
-func (m *minSizeWrap) CreateRenderer() fyne.WidgetRenderer {
-	return &minSizeRender{obj: m.inner, minSize: m.minsize}
-}
-
-type minSizeRender struct {
-	obj     fyne.CanvasObject
-	minSize fyne.Size
-}
-
-func (r *minSizeRender) Objects() []fyne.CanvasObject              { return []fyne.CanvasObject{r.obj} }
-func (r *minSizeRender) Layout(s fyne.Size)                          { r.obj.Resize(s) }
-func (r *minSizeRender) MinSize() fyne.Size                          { return r.minSize }
-func (r *minSizeRender) Refresh()                                    {}
-func (r *minSizeRender) ApplyTheme()                                 {}
-func (r *minSizeRender) BackgroundColor() color.Color                { return color.Transparent }
-func (r *minSizeRender) Destroy()                                    {}
 
 var monoFont fyne.Resource
 

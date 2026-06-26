@@ -93,16 +93,6 @@ type ColorPicker struct {
 	Destroy func()
 }
 
-func makeSizedRaster(draw func(w, h int) image.Image, minW, minH int) *sizedRasterWidget {
-	r := canvas.NewRaster(draw)
-	s := &sizedRasterWidget{
-		raster:  r,
-		minSize: fyne.NewSize(float32(minW), float32(minH)),
-	}
-	s.ExtendBaseWidget(s)
-	return s
-}
-
 func NewColorPicker(
 	initialHex string,
 	onPreview func(hex string),
@@ -242,8 +232,7 @@ func NewColorPicker(
 	hexEntry := fynetool.NewEntry()
 	hexEntry.SetText(initialHex)
 	hexEntry.PlaceHolder = "#FF00AA"
-	hexWrapped := &minSizeWrap{inner: hexEntry, minsize: fyne.NewSize(108, 38)}
-	hexWrapped.ExtendBaseWidget(hexWrapped)
+	hexWrapped := NewMinSizeWrap(hexEntry, fyne.NewSize(108, 38))
 	hexEntry.OnChanged = func(s string) {
 		if updating {
 			return
@@ -320,7 +309,7 @@ type hBarTappable struct {
 }
 
 func (h *hBarTappable) CreateRenderer() fyne.WidgetRenderer {
-	return &simpleRender{obj: h.raster, minSize: h.minSize}
+	return &spriteRenderer{inner: h.raster, minSize: h.minSize}
 }
 
 func (h *hBarTappable) Tapped(ev *fyne.PointEvent) {
@@ -339,41 +328,4 @@ func (h *hBarTappable) Dragged(ev *fyne.DragEvent) {
 
 func (h *hBarTappable) DragEnd() {}
 
-type minSizeWrap struct {
-	fynetool.BaseWidget
-	inner   fyne.CanvasObject
-	minsize fyne.Size
-}
 
-func (m *minSizeWrap) CreateRenderer() fyne.WidgetRenderer {
-	return &simpleRender{obj: m.inner, minSize: m.minsize}
-}
-
-type sizedRasterWidget struct {
-	fynetool.BaseWidget
-	raster  *canvas.Raster
-	minSize fyne.Size
-}
-
-func (s *sizedRasterWidget) CreateRenderer() fyne.WidgetRenderer {
-	return &simpleRender{obj: s.raster, minSize: s.minSize}
-}
-
-func (s *sizedRasterWidget) Refresh() {
-	s.raster.Refresh()
-}
-
-type simpleRender struct {
-	obj     fyne.CanvasObject
-	minSize fyne.Size
-}
-
-func (r *simpleRender) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.obj}
-}
-func (r *simpleRender) Layout(s fyne.Size) { r.obj.Resize(s) }
-func (r *simpleRender) MinSize() fyne.Size { return r.minSize }
-func (r *simpleRender) Refresh()           { canvas.Refresh(r.obj) }
-func (r *simpleRender) ApplyTheme()        {}
-func (r *simpleRender) BackgroundColor() color.Color { return color.Transparent }
-func (r *simpleRender) Destroy()           {}
