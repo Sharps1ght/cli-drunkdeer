@@ -2,6 +2,6 @@
 Type=Application
 Name=DrunkDeer Config
 Comment=Configure DrunkDeer keyboard profiles, lights, and remaps
-Exec=drunkdeer-gui
+Exec=drunkdeer gui
 Terminal=false
 Categories=Utility;HardwareSettings;

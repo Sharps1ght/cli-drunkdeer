@@ -166,6 +166,12 @@ func (k *KeyboardWidget) SetIndividualColor(idx int, hex string) {
 	k.Refresh()
 }
 
+func (k *KeyboardWidget) SetModel(model string) {
+	k.model = model
+	k.layout = GetLayoutDef(model)
+	k.Refresh()
+}
+
 func (k *KeyboardWidget) SelectedKeys() []int {
 	var keys []int
 	for v := range k.selected {

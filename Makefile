@@ -1,18 +1,20 @@
-GOAMD64=v1
-GO_TAGS=
+.PHONY: all clean deps wayland
 
-.PHONY: all cli gui wayland clean
+all: drunkdeer
 
-all: cli gui
-
-cli:
-	GOAMD64=$(GOAMD64) go build -o drunkdeer-cli ./drunkdeer
-
-gui:
-	GOAMD64=$(GOAMD64) go build -tags '$(GO_TAGS)' -o drunkdeer-gui ./gui
+drunkdeer:
+	@GO_TAGS=""; \
+	if [ -n "$$WAYLAND_DISPLAY" ]; then GO_TAGS="wayland"; fi; \
+	CGO_ENABLED=1 go build -tags "$$GO_TAGS" -o drunkdeer ./cmd/drunkdeer
 
 wayland:
-	$(MAKE) gui GO_TAGS=wayland
+	$(MAKE) GO_TAGS=wayland
 
 clean:
-	rm -f drunkdeer-cli drunkdeer-gui
+	rm -f drunkdeer
+
+deps:
+	@echo "Debian/Ubuntu: sudo apt install libgl1-mesa-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev"
+	@echo "Fedora:        sudo dnf install mesa-libGL-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel libXext-devel"
+	@echo "Arch:          sudo pacman -S mesa libxrandr libxinerama libxcursor libxi libxext"
+	@echo "Nix:           nix-shell -p mesa libxrandr libxinerama libxcursor libxi libxext"

@@ -1,63 +1,72 @@
 # Custom DrunkDeer Driver CLI
 
-This CLI is a custom driver for the DrunkDeer keyboard. It allows you to configure the keyboard's settings, including actuation points, light settings, turbo mode and rapid trigger.
+Please, visit [original repository](https://github.com/2xxn/cli-drunkdeer) for additional info.
 
-## Reason for this project
+## Build Dependencies
 
-This project was created out of frustration, DrunkDeer webdriver's servers are so awful that getting into the WebDriver can sometimes take up to 10 minutes (especially uncached, I have tendencies to reload using CTRL+SHIFT+R). This project is a workaround for that, it allows you to configure the keyboard without the need for the web driver, additionally "preventing" DrunkDeer from exit-scamming.
-
-## Installation
-### You will need gcc before installing and CGO_ENABLED=1
+You need `gcc`, `CGO_ENABLED=1`, and X11 development libraries:
 
 ```bash
-set CGO_ENABLED=1
-go install github.com/2xxn/cli-drunkdeer/drunkdeer@latest
+# Debian/Ubuntu
+sudo apt install libgl1-mesa-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxext-dev
+# Fedora
+sudo dnf install mesa-libGL-devel libXrandr-devel libXinerama-devel libXcursor-devel libXi-devel libXext-devel
+# Arch
+sudo pacman -S mesa libxrandr libxinerama libxcursor libxi libxext
+# Nix
+nix-shell -p mesa libxrandr libxinerama libxcursor libxi libxext
 ```
-### You may simply move ./go/bin/drunkdeer* to /usr/bin under root on Linux, BUT ONLY AT YOUR OWN RISK!!!
 
-This allows you to do this (for example):
+## Building
+
 ```bash
-sudo drunkdeer -h
+git clone https://github.com/Sharps1ght/opendrunkdeer
+cd opendrunkdeer
+make
 ```
 
-```sudo``` is required cuz of permissions stuff.
-This tool works, but not for everything.
+This produces a single `drunkdeer` binary with both CLI and GUI modes. On Wayland, ```make``` auto-detects your display server and builds with Wayland support. To force a Wayland build: ```make wayland```.
+
+## udev Rules
+
+By default, HID devices require root access. Install the udev rules once to let your user account talk to the keyboard directly:
+
+```bash
+# Run these from the project root (where the etc/ directory lives)
+sudo cp etc/udev/rules.d/99-drunkdeer.rules /etc/udev/rules.d/99-drunkdeer.rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+Create the `plugdev` group if it doesn't exist, then add your user and **log out and back in**:
+
+```bash
+sudo groupadd -f plugdev
+sudo usermod -aG plugdev $USER
+```
+
+To make sure the utility works, **unplug and replug the keyboard** for the rule to take effect.
 
 ## Usage
 
 ```bash
-drunkdeer [command] [value?] [options?]
+drunkdeer list                      			# list connected devices
+drunkdeer profiles                  			# list saved profiles
+drunkdeer load <MyProfile>          			# load a profile
+drunkdeer import path/to/config.json			# import a config
+drunkdeer gui                       			# launch the graphical configurator
+drunkdeer gui -model G60/G70/G75/A75			# GUI with a specific keyboard model
+drunkdeer set <section> <subsection> <value>    # apply a setting according to .json (e.g. 'drunkdeer set light sequence 19)
 ```
 
-### You will generally need those 4 commands
-
-```bash
-drunkdeer list - list all available devices
-drunkdeer profiles - list all available profiles
-drunkdeer import [path-to-config-file] - import a DRUNKDEER ANTLER CONFIG FILE
-drunkdeer load [profile-name] - load a profile into the keyboard
-```
-#### To import someone's CLI config file you can do `drunkdeer load [url/relative or absolute path]`
-
-
-### To learn more
-
-```bash
-drunkdeer
-drunkdeer -h
-```
+**NOTE:** ```color(s)``` are NOT RECOMMENDED to be set via ```drunkdeer set``` due to the way configuration is handled.
 
 ## Config File structure
-### This entry is for myself and the more advanced users
-### The config file is a JSON file that contains the following structure:
 
-List of character names and color sequences can be found in [this file](https://github.com/2xxn/cli-drunkdeer/blob/main/driver/consts.go)<br>
-Actuation point should be between 0.1mm and 3.9mm (although both are unadvised, you should do 0.2mm at lowest)
-#### Speed and brightness must be between 0 and 9 (where 9 is max)
+Speed and brightness must be between 0 and 9 inside of .json (where 9 is max), direction must be 0, 1 or 2. Actuation point should be between 0.2mm and 3.8mm for the best experience.
 
 ```json
 {
-    "model": "A75",
+    "model": "G60",
     "turbo": false,
     "defaultActuation": 2.0,
     "rapidTrigger": {
@@ -70,99 +79,48 @@ Actuation point should be between 0.1mm and 3.9mm (although both are unadvised, 
         "direction": 0,
         "speed": 5,
         "brightness": 9,
-        "sequence": 5
+        "sequence": 5, 
+        "color": "#FFFFFF",
+        "colorTurbo": "#FF00FF",
+        "colors":   {
+            "W": "#FF0000", 
+            "A": "#FF0000", 
+            "S": "#FF0000", 
+            "D": "#FF0000"
+        }
     },
     "actuationPoints": {
         "W": 0.2,
         "A": 0.2,
         "S": 0.2,
         "D": 0.2,
-        "TAB": 3.8
+        "CAPS": 3.8
     },
     "rapidTriggers": {
+        "W": [0.2, 0.2],
         "A": [0.2, 0.2],
-        "S": [0.2, 0.2]
-    }
-}
-```
-
-# WORD FROM ME, SHARPSIGHT
-
-I (OpenCode Zen, i dunno) made color profiles work on Linux. It still requires ```sudo``` to work. ONLY TESTED WITH G60 AND EXPLICITLY MADE TO WORK WITH IT! PLEASE, don't try it on other keyboards. Or do, but at your own risk.
-## Usage
-
-There is a precomplied executable at *cli-drunkdeer/drunkdeer*. To run, use
-```bash
-sudo /path/to/executable/drunkdeer *command*
-```
-or compile yourself: go inside the cloned repo's directory and run ```go build -o drunkdeer ./drunkdeer```.
-## List of sequences
-
-Or light modes, however you like:
-| Value | Name |
-|-------|------|
-| 0  | Off              |
-| 1  | Rotating Chase   |
-| 2  | Spectrum Wave    |
-| 3  | Right Surfing    |
-| 4  | Breathing        |
-| 5  | Center Surfing   |
-| 6  | Spectrum Cycle   |
-| 7  | Key Ripple       |
-| 8  | Always On        |
-| 9  | Press To Light   |
-| 10 | Center Snake     |
-| 11 | Color Fountain   |
-| 12 | Key Laser        |
-| 13 | Glowing Fish     |
-| 14 | Cross Surfing    |
-| 15 | Heart            |
-| 16 | Traffic          |
-| 17 | Snake            |
-| 18 | Raindrop         |
-| 19 | Custom Colors    |
-## Custom colors
-
-If you set ```sequence``` to ```19``` you can set your colors with ```color(s)```.
-This utility accepts HEX code. ```color``` decides the default color of unspecified keys, while ```colors``` is for custom color for specific key, overriding the ```color```.
-```json
-{
-"light":    {
-[...]
-"color": "#00FF00",
-"colors":   {
-    "ESC": "#FF0000",
-    "SPACE": "#FF0000",
-    "RETURN": "#FF0000"
-        }
-    }
-}
-```
-This exact setup will make every key green, except Escape, Space and Enter, these three will be red.
-## Remapping
-
-To remap a key, add ```remap``` section:
-```json
-{
-    "remap": {
-        "Default": {
+        "S": [0.2, 0.2],
+        "D": [0.2, 0.2]
+    },
+    "remap":    {
+        "Default":  {
             "W": "S",
             "A": "D",
             "S": "W",
             "D": "A"
-            },
-        "Fn1": {
+        },
+        "Fn":   {
             "1": "F1",
             "2": "F2",
             [...]
-            },
-        "Fn2": {
+        },
+        "Menu": {
             "1": "NUM1",
             "2": "NUM2",
             [...]
         }
-    }
 }
 ```
-This particular setup will make you drunk in FPS games, binds Functions keys to the same ones available by default iirc and sets "Menu" 1-9 and 0 to numpad decimals. Not a complete, but it will give you an idea, I am sure. <br>
-For tables of actions and keys refer to [mapping tables](/mapping.md). It is only made for G60 for now, but it should overlap with the rest of Drunkdeer keyboards. </br>
+
+For tables of actions and keys refer to [mapping tables](/mapping.md). It is only made for G60 for now, but it should overlap with the rest of Drunkdeer keyboards.
+List of character names and color sequences can be found in [this file](https://github.com/Sharps1ght/opendrunkdeer/blob/main/driver/consts.go)

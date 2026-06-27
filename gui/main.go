@@ -1,4 +1,4 @@
-package main
+package gui
 
 import (
 	"encoding/json"
@@ -28,6 +28,37 @@ import (
 	kbwidget "github.com/2xxn/cli-drunkdeer/gui/widget"
 )
 
+func udevHint(err error) error {
+	return fmt.Errorf("%w\ninstall udev rules: see README at github.com/Sharps1ght/opendrunkdeer", err)
+}
+
+func selfExec(args ...string) ([]byte, error) {
+	self, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+	out, err := exec.Command(self, args...).CombinedOutput()
+	if err != nil {
+		return out, udevHint(err)
+	}
+	return out, nil
+}
+
+func selfExecInteractive(args ...string) error {
+	self, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(self, args...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return udevHint(err)
+	}
+	return nil
+}
+
 type LightProfile struct {
 	Enabled     bool              `json:"enabled"`
 	Direction   int               `json:"direction"`
@@ -37,7 +68,7 @@ type LightProfile struct {
 	ColorIndex  int               `json:"colorIndex,omitempty"`
 	Color       string            `json:"color"`
 	Colors     map[string]string `json:"colors,omitempty"`
-	TurboColor string            `json:"turboColor,omitempty"`
+	TurboColor string            `json:"colorTurbo,omitempty"`
 }
 
 type RapidTriggerProfile struct {
@@ -276,11 +307,7 @@ func applyProfileToKeyboard(profile *Profile, model string, dir string) {
 		log.Printf("Error writing temp profile: %v", err)
 		return
 	}
-	cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "--debug", "load", tmpPath)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	if err := selfExecInteractive("--debug", "load", tmpPath); err != nil {
 		log.Printf("Error applying profile: %v", err)
 	}
 	os.Remove(tmpPath)
@@ -399,11 +426,8 @@ func newIntSlider(opts intSliderOpts) (sl *fynetool.Slider, entry *fynetool.Entr
 	return
 }
 
-func main() {
-	if os.Getenv("DISPLAY") == "" && os.Getenv("WAYLAND_DISPLAY") == "" {
-		fmt.Fprintln(os.Stderr, "No display server found (set DISPLAY for X11 or WAYLAND_DISPLAY for Wayland)")
-		os.Exit(1)
-	}
+func Run() {
+	checkDisplay()
 
 	a := app.NewWithID("drunkdeer-config")
 
@@ -515,8 +539,7 @@ func main() {
 		onChanged: func(v int) {
 			profile.Light.Brightness = v - 1
 			brTimer = startDebounce(brTimer, 500*time.Millisecond, func() {
-				cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "brightness", strconv.Itoa(v-1))
-				if out, err := cmd.CombinedOutput(); err != nil {
+				if out, err := selfExec("set", "light", "brightness", strconv.Itoa(v-1)); err != nil {
 					log.Printf("Error setting light brightness: %v\n%s", err, out)
 				}
 			})
@@ -532,8 +555,7 @@ func main() {
 		onChanged: func(v int) {
 			profile.Light.Speed = v - 1
 			spTimer = startDebounce(spTimer, 500*time.Millisecond, func() {
-				cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "speed", strconv.Itoa(v-1))
-				if out, err := cmd.CombinedOutput(); err != nil {
+				if out, err := selfExec("set", "light", "speed", strconv.Itoa(v-1)); err != nil {
 					log.Printf("Error setting light speed: %v\n%s", err, out)
 				}
 			})
@@ -698,8 +720,7 @@ func main() {
 		updateColorBtnState()
 		if !startingUp {
 			go func() {
-				cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "sequence", strconv.Itoa(seq))
-				if out, err := cmd.CombinedOutput(); err != nil {
+				if out, err := selfExec("set", "light", "sequence", strconv.Itoa(seq)); err != nil {
 					log.Printf("Error setting light sequence: %v\n%s", err, out)
 				}
 			}()
@@ -748,8 +769,7 @@ func main() {
 		}
 		applyKeyboardColors(kb, profile, model)
 		if !updatingColorSelect {
-			cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "colorIndex", strconv.Itoa(profile.Light.ColorIndex))
-			if out, err := cmd.CombinedOutput(); err != nil {
+			if out, err := selfExec("set", "light", "colorIndex", strconv.Itoa(profile.Light.ColorIndex)); err != nil {
 				log.Printf("Error setting light color index: %v\n%s", err, out)
 			}
 		}
@@ -820,6 +840,8 @@ func main() {
 
 	modelMismatchLabel := canvas.NewText("Keyboard model mismatch", color.RGBA{0xff, 0xff, 0x00, 0xff})
 	modelMismatchLabel.Hidden = true
+	noKeyboardLabel := canvas.NewText("No keyboard detected", color.RGBA{0xff, 0x65, 0x00, 0xff})
+	noKeyboardLabel.Hidden = true
 
 	if initialModel != "" && initialModel != model {
 		profile = defaultProfile(model)
@@ -836,6 +858,7 @@ func main() {
 	var selecting bool
 	var profileSelect *fynetool.Select
 	var setMismatchUI func(bool)
+	var setNoKeyboardUI func(bool)
 	var rtCheck, turboCheck *fynetool.Check
 	var turboHexUpdating bool
 	var turboTimer *time.Timer
@@ -991,8 +1014,7 @@ func main() {
 		turboTimer = startDebounce(turboTimer, 500*time.Millisecond, func() {
 			matched, _ := regexp.MatchString("^#[0-9a-fA-F]{6}$", s)
 			if matched {
-				cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "light", "turboColor", s)
-				if out, err := cmd.CombinedOutput(); err != nil {
+				if out, err := selfExec("set", "light", "colorTurbo", s); err != nil {
 					log.Printf("Error setting turbo color: %v\n%s", err, out)
 				}
 			}
@@ -1017,8 +1039,7 @@ func main() {
 		if checked {
 			val = "true"
 		}
-		cmd := exec.Command("sudo", "-E", "drunkdeer-cli", "set", "turbo", val)
-		if out, err := cmd.CombinedOutput(); err != nil {
+		if out, err := selfExec("set", "turbo", val); err != nil {
 			log.Printf("Error setting turbo: %v\n%s", err, out)
 		}
 	})
@@ -1189,8 +1210,7 @@ func main() {
 	})
 	remapBtn.Disable()
 
-	setMismatchUI = func(mismatch bool) {
-		modelMismatchLabel.Hidden = !mismatch
+	disableWidgets := func(dis bool) {
 		widgets := []fyne.Disableable{
 			profileSelect, apply, saveBtn, deleteBtn,
 			colorBtn, colorIndexSelect,
@@ -1200,24 +1220,35 @@ func main() {
 			brSlider, brValue, spSlider, spValue,
 		}
 		for _, w := range widgets {
-			if mismatch {
+			if dis {
 				w.Disable()
 			} else {
 				w.Enable()
 			}
 		}
-		if mismatch {
+		if dis {
 			remapBtn.Disable()
 		} else {
 			updateColorBtnState()
 			updateColorSelectState()
 		}
 	}
+	setMismatchUI = func(mismatch bool) {
+		modelMismatchLabel.Hidden = !mismatch
+		disableWidgets(mismatch)
+	}
+	setNoKeyboardUI = func(nokey bool) {
+		noKeyboardLabel.Hidden = !nokey
+		if nokey {
+			modelMismatchLabel.Hidden = true
+		}
+		disableWidgets(!nokey)
+	}
 	if initialModel != "" && initialModel != model {
 		setMismatchUI(true)
 	}
 	profileSelect.SetSelected(currentProfile)
-	topBar := container.NewBorder(nil, nil, container.NewHBox(profileSelect, deleteBtn, rtCheck, turboCheck, turboHexWrapped, remapRadio, remapBtn), modelMismatchLabel)
+	topBar := container.NewBorder(nil, nil, container.NewHBox(profileSelect, deleteBtn, rtCheck, turboCheck, turboHexWrapped, remapRadio, remapBtn), container.NewVBox(modelMismatchLabel, noKeyboardLabel))
 
 	kbCentered := container.NewCenter(
 		container.NewVBox(
@@ -1243,6 +1274,13 @@ func main() {
 		kb.MinSize().Height+pad+butH+float32(60),
 	))
 	w.CenterOnScreen()
+	out, err := selfExec("--list")
+	if err != nil || strings.Contains(string(out), "No devices found") {
+		model = driver.KEYBOARD_A75
+		kb.SetModel(model)
+		profile = defaultProfile(model)
+		setNoKeyboardUI(true)
+	}
 	w.ShowAndRun()
 }
 

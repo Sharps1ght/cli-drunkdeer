@@ -28,3 +28,4 @@ go.work.sum
 # Build artifacts (Linux ELF binaries)
 drunkdeer-cli
 drunkdeer-gui
+drunkdeer
