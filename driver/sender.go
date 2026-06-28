@@ -23,8 +23,13 @@ func (d *DrunkDeerController) SendCustomColorPacket(colorData []byte, brightness
 func (d *DrunkDeerController) SendCustomColorData(colors map[int][3]byte, brightness byte, defaultColor [3]byte, turbo bool) {
 	const chunkSize = COLORS_PER_PACKET * BYTES_PER_KEY
 
+	model := KEYBOARD_G60
+	if d.identity != nil {
+		model = d.identity.KeyboardModel
+	}
+
 	var flat []byte
-	for _, row := range G60_LED_GRID {
+	for _, row := range GetLEDGrid(model) {
 		for _, idx := range row {
 			rgb, ok := colors[idx]
 			if !ok {
