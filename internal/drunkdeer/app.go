@@ -252,10 +252,10 @@ func (a *App) configureLights(config *Config) {
 }
 
 func (a *App) applySettings(config *Config, actuations, downstrokes, upstrokes []byte) {
-	a.controller.SendRapidTriggerTurbo(config.RapidTrigger.Enabled, config.Turbo)
 	a.controller.LoadActuations(actuations)
 	a.controller.LoadDownstrokes(downstrokes)
 	a.controller.LoadUpstrokes(upstrokes)
+	a.controller.SendRapidTriggerTurbo(config.RapidTrigger.Enabled, config.Turbo)
 	a.controller.Flush()
 
 	seq := a.controller.Light.Sequence
@@ -579,7 +579,31 @@ func (a *App) handleSet() {
 		if key == "enabled" {
 			v := len(values) > 0 && (strings.ToLower(values[0]) == "true" || values[0] == "1")
 			state.RapidTrigger.Enabled = v
-			a.controller.SendRapidTriggerTurbo(v, a.controller.GetIdentity().Turbo)
+			enabled := v
+			actuations := make([]byte, driver.LAYOUT_SIZE)
+			downstrokes := make([]byte, driver.LAYOUT_SIZE)
+			upstrokes := make([]byte, driver.LAYOUT_SIZE)
+			defAct := driver.ActuationFloatToByte(state.DefaultActuation)
+			defDS := driver.ActuationFloatToByte(state.RapidTrigger.DefaultDownstroke)
+			defUS := driver.ActuationFloatToByte(state.RapidTrigger.DefaultUpstroke)
+			for i := range actuations {
+				actuations[i] = defAct
+				downstrokes[i] = defDS
+				upstrokes[i] = defUS
+			}
+			for key, val := range state.ActuationPoints {
+				i := driver.GetIndexByKey(key, model)
+				actuations[i] = driver.ActuationFloatToByte(val)
+			}
+			for key, val := range state.RapidTriggers {
+				i := driver.GetIndexByKey(key, model)
+				downstrokes[i] = driver.ActuationFloatToByte(val[0])
+				upstrokes[i] = driver.ActuationFloatToByte(val[1])
+			}
+			a.controller.LoadActuations(actuations)
+			a.controller.LoadDownstrokes(downstrokes)
+			a.controller.LoadUpstrokes(upstrokes)
+			a.controller.SendRapidTriggerTurbo(enabled, a.controller.GetIdentity().Turbo)
 			a.controller.Flush()
 			color.HiGreen("Rapid Trigger = %v", v)
 		} else if key == "defaultDownstroke" {
@@ -589,6 +613,17 @@ func (a *App) handleSet() {
 			}
 			v, _ := strconv.ParseFloat(values[0], 32)
 			state.RapidTrigger.DefaultDownstroke = float32(v)
+			downstrokes := make([]byte, driver.LAYOUT_SIZE)
+			def := driver.ActuationFloatToByte(float32(v))
+			for i := range downstrokes {
+				downstrokes[i] = def
+			}
+			for key, val := range state.RapidTriggers {
+				i := driver.GetIndexByKey(key, model)
+				downstrokes[i] = driver.ActuationFloatToByte(val[0])
+			}
+			a.controller.LoadDownstrokes(downstrokes)
+			a.controller.Flush()
 			color.HiGreen("Rapid trigger default downstroke = %.1fmm", v)
 		} else if key == "defaultUpstroke" {
 			if len(values) < 1 {
@@ -597,6 +632,17 @@ func (a *App) handleSet() {
 			}
 			v, _ := strconv.ParseFloat(values[0], 32)
 			state.RapidTrigger.DefaultUpstroke = float32(v)
+			upstrokes := make([]byte, driver.LAYOUT_SIZE)
+			def := driver.ActuationFloatToByte(float32(v))
+			for i := range upstrokes {
+				upstrokes[i] = def
+			}
+			for key, val := range state.RapidTriggers {
+				i := driver.GetIndexByKey(key, model)
+				upstrokes[i] = driver.ActuationFloatToByte(val[1])
+			}
+			a.controller.LoadUpstrokes(upstrokes)
+			a.controller.Flush()
 			color.HiGreen("Rapid trigger default upstroke = %.1fmm", v)
 		} else {
 			if len(values) < 2 {

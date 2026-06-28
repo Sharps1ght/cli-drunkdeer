@@ -1,0 +1,83 @@
+name: Build and Release
+
+on:
+  push:
+    branches: ["*"]
+    tags: ["v*"]
+  pull_request:
+    branches: ["*"]
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libxrandr-dev \
+            libxinerama-dev libxcursor-dev libxi-dev libxext-dev
+
+      - name: Build
+        run: make
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: drunkdeer-linux
+          path: drunkdeer
+
+  windows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Install MinGW-w64
+        run: sudo apt-get install -y gcc-mingw-w64-x86-64
+
+      - name: Build
+        run: make windows
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: drunkdeer-windows
+          path: drunkdeer.exe
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: drunkdeer-linux
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: drunkdeer-windows
+
+      - name: Package
+        run: |
+          chmod +x drunkdeer
+          tar czf drunkdeer-linux-x86_64.tar.gz drunkdeer
+          zip drunkdeer-windows-x86_64.zip drunkdeer.exe
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            drunkdeer-linux-x86_64.tar.gz
+            drunkdeer-windows-x86_64.zip
+          generate_release_notes: true

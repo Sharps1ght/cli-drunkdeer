@@ -38,7 +38,12 @@ func (d *DrunkDeerController) sendReport(p []byte) {
 
 	copy(report[1:], p)
 
-	_, err := d.device.Write(report)
+	var err error
+	if p[0] == PACKET_TURBORT {
+		_, err = d.device.SendFeatureReport(report)
+	} else {
+		_, err = d.device.Write(report)
+	}
 	reportPool.Put(report)
 	if err != nil {
 		d.Log("Write error: %v", err)
