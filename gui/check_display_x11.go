@@ -1,4 +1,4 @@
-//go:build !wayland
+//go:build !wayland && !windows
 
 package gui
 

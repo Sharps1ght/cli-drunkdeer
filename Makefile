@@ -1,4 +1,4 @@
-.PHONY: all clean deps wayland
+.PHONY: all clean deps wayland windows
 
 all: drunkdeer
 
@@ -9,6 +9,9 @@ drunkdeer:
 
 wayland:
 	$(MAKE) GO_TAGS=wayland
+
+windows:
+	GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc CGO_ENABLED=1 go build -tags "windows" -o drunkdeer.exe ./cmd/drunkdeer
 
 clean:
 	rm -f drunkdeer

@@ -25,7 +25,7 @@ cd opendrunkdeer
 make
 ```
 
-This produces a single `drunkdeer` binary with both CLI and GUI modes. On Wayland, ```make``` auto-detects your display server and builds with Wayland support. To force a Wayland build: ```make wayland```.
+This produces a single `drunkdeer` binary with both CLI and GUI modes. On Windows, starting the .exe just opens the GUI. On Wayland, ```make``` auto-detects your display server and builds with Wayland support. To force a Wayland build: ```make wayland```.
 
 ## udev Rules
 
